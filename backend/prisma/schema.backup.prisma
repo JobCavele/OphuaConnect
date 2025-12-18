@@ -1,0 +1,105 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url = "file:./dev.db"
+}
+
+// ========== MODELOS COMPLETOS OPHUACONNECT ==========
+
+model User {
+  id             String    @id @default(cuid())
+  email          String    @unique
+  passwordHash   String
+  role           String    @default("PERSONAL")
+  isActive       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  // Rela??es
+  personalProfile   PersonalProfile?
+  companyAdmin      CompanyAdmin?
+  employeeProfile   EmployeeProfile?
+
+  @@map("users")
+}
+
+model PersonalProfile {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName    String
+  title       String?
+  bio         String?
+  website     String?
+  socialLinks String?
+  profileSlug String   @unique
+  qrCodeUrl   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("personal_profiles")
+}
+
+model Company {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  displayName String
+  description String?
+  website     String?
+  logoUrl     String?
+  socialLinks String?
+  slug        String   @unique
+  isVerified  Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Rela??es
+  admins      CompanyAdmin[]
+  employees   EmployeeProfile[]
+  
+  @@map("companies")
+}
+
+model CompanyAdmin {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  canManageEmployees Boolean @default(true)
+  canEditCompanyInfo Boolean @default(true)
+  canInviteAdmins    Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("company_admins")
+}
+
+model EmployeeProfile {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id])
+  
+  fullName    String
+  position    String
+  department  String?
+  bio         String?
+  socialLinks String?
+  profileSlug String   @unique
+  qrCodeUrl   String?
+  isApproved  Boolean  @default(false)
+  isActive    Boolean  @default(true)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("employee_profiles")
+}
