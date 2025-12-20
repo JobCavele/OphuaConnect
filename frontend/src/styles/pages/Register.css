@@ -1,0 +1,528 @@
+/* src/styles/pages/Register.css */
+
+/* Estilos gerais do registro */
+.register-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 20px;
+}
+
+.register-container {
+  width: 100%;
+  max-width: 1200px;
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.register-header {
+  text-align: center;
+  padding: 40px 40px 20px;
+  background: linear-gradient(to right, #667eea, #764ba2);
+  color: white;
+}
+
+.logo-circle {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 20px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36px;
+}
+
+.logo-text {
+  color: white;
+}
+
+.employee-logo {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.register-header h1 {
+  font-size: 2.5rem;
+  margin-bottom: 10px;
+  font-weight: 700;
+}
+
+.subtitle {
+  font-size: 1.1rem;
+  opacity: 0.9;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+/* Botão voltar */
+.back-button {
+  position: absolute;
+  left: 20px;
+  top: 20px;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  padding: 10px 15px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.3s;
+}
+
+.back-button:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateX(-5px);
+}
+
+/* Seletor de tipo de conta */
+.account-type-selector {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 30px;
+  padding: 40px;
+}
+
+.account-type {
+  border: 2px solid #e2e8f0;
+  border-radius: 15px;
+  padding: 30px;
+  transition: all 0.3s;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.account-type:hover {
+  border-color: #667eea;
+  transform: translateY(-5px);
+  box-shadow: 0 10px 30px rgba(102, 126, 234, 0.1);
+}
+
+.personal-account:hover {
+  border-color: #4f46e5;
+}
+
+.company-account:hover {
+  border-color: #059669;
+}
+
+.account-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.account-icon {
+  font-size: 48px;
+  margin-bottom: 20px;
+}
+
+.account-header h3 {
+  font-size: 1.8rem;
+  margin-bottom: 15px;
+  color: #2d3748;
+}
+
+.account-header p {
+  color: #718096;
+  line-height: 1.6;
+}
+
+.account-features {
+  flex-grow: 1;
+  margin-bottom: 30px;
+}
+
+.account-features h4 {
+  color: #4a5568;
+  margin-bottom: 15px;
+  font-size: 1.1rem;
+}
+
+.account-features ul {
+  list-style: none;
+  padding: 0;
+}
+
+.account-features li {
+  padding: 8px 0;
+  color: #718096;
+  position: relative;
+  padding-left: 25px;
+}
+
+.account-features li:before {
+  content: "✓";
+  position: absolute;
+  left: 0;
+  color: #48bb78;
+  font-weight: bold;
+}
+
+.select-button {
+  width: 100%;
+  padding: 15px;
+  border: none;
+  border-radius: 10px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-align: center;
+}
+
+.personal-button {
+  background: linear-gradient(to right, #4f46e5, #7c3aed);
+  color: white;
+}
+
+.personal-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(79, 70, 229, 0.3);
+}
+
+.company-button {
+  background: linear-gradient(to right, #059669, #10b981);
+  color: white;
+}
+
+.company-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(5, 150, 105, 0.3);
+}
+
+/* Cartão de registro */
+.register-card {
+  padding: 40px;
+}
+
+.form-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 25px;
+  margin-bottom: 30px;
+}
+
+.form-group {
+  margin-bottom: 0;
+}
+
+.form-group.full-width {
+  grid-column: 1 / -1;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #4a5568;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  width: 100%;
+  padding: 12px 15px;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: all 0.3s;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.form-group textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+.password-hint,
+.file-hint {
+  font-size: 0.85rem;
+  color: #a0aec0;
+  margin-top: 5px;
+}
+
+/* Upload de arquivos */
+.file-upload-wrapper {
+  position: relative;
+}
+
+.file-input {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.file-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 15px;
+  border: 2px dashed #e2e8f0;
+  border-radius: 8px;
+  background: #f7fafc;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.file-label:hover {
+  border-color: #667eea;
+  background: #edf2f7;
+}
+
+.upload-icon {
+  font-size: 1.5rem;
+}
+
+.upload-text {
+  flex-grow: 1;
+  color: #718096;
+}
+
+.file-preview {
+  margin-top: 15px;
+}
+
+.preview-image {
+  width: 100px;
+  height: 100px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 2px solid #e2e8f0;
+}
+
+/* Seção de redes sociais */
+.form-section {
+  grid-column: 1 / -1;
+  margin-top: 20px;
+}
+
+.form-section h3 {
+  color: #2d3748;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.social-links-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+}
+
+.social-input label {
+  display: block;
+  margin-bottom: 8px;
+  color: #4a5568;
+  font-weight: 500;
+}
+
+/* Checkbox de termos */
+.terms-agreement {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 30px 0;
+  padding: 20px;
+  background: #f7fafc;
+  border-radius: 10px;
+}
+
+.terms-agreement input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+}
+
+.terms-agreement label {
+  cursor: pointer;
+  color: #4a5568;
+}
+
+.terms-link {
+  color: #667eea;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.terms-link:hover {
+  text-decoration: underline;
+}
+
+/* Botão de submit */
+.submit-button {
+  width: 100%;
+  padding: 16px;
+  border: none;
+  border-radius: 10px;
+  font-size: 1.2rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.submit-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.personal-button {
+  background: linear-gradient(to right, #4f46e5, #7c3aed);
+  color: white;
+}
+
+.company-button {
+  background: linear-gradient(to right, #059669, #10b981);
+  color: white;
+}
+
+.employee-button {
+  background: linear-gradient(to right, #667eea, #764ba2);
+  color: white;
+}
+
+.submit-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+}
+
+.loading-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.loading-spinner {
+  width: 20px;
+  height: 20px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Mensagem de erro */
+.error-message {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 15px;
+  background: #fed7d7;
+  border: 2px solid #fc8181;
+  border-radius: 10px;
+  color: #c53030;
+  margin-bottom: 20px;
+  grid-column: 1 / -1;
+}
+
+.error-icon svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.error-message p {
+  margin: 0;
+  font-weight: 500;
+}
+
+/* Rodapé */
+.register-footer {
+  text-align: center;
+  padding-top: 30px;
+  margin-top: 30px;
+  border-top: 2px solid #e2e8f0;
+  color: #718096;
+}
+
+.login-link {
+  color: #667eea;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.login-link:hover {
+  text-decoration: underline;
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #667eea;
+  text-decoration: none;
+  font-weight: 600;
+  margin-top: 20px;
+}
+
+.back-link:hover {
+  text-decoration: underline;
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+  .account-type-selector {
+    grid-template-columns: 1fr;
+    padding: 20px;
+  }
+
+  .register-container {
+    margin: 10px;
+  }
+
+  .register-header {
+    padding: 30px 20px 15px;
+  }
+
+  .register-header h1 {
+    font-size: 2rem;
+  }
+
+  .register-card {
+    padding: 20px;
+  }
+
+  .form-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .social-links-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .account-type {
+    padding: 20px;
+  }
+
+  .account-header h3 {
+    font-size: 1.5rem;
+  }
+
+  .select-button,
+  .submit-button {
+    padding: 12px;
+    font-size: 1rem;
+  }
+}

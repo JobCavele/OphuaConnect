@@ -1,0 +1,135 @@
+/* src/styles/components/SocialLinks.css */
+.social-links {
+  margin: var(--space-6) 0;
+}
+
+.social-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.social-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.social-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.social-icon {
+  font-size: 1.2rem;
+}
+
+.social-name {
+  font-size: 0.9rem;
+}
+
+.social-input {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+
+.social-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.social-display {
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+}
+
+.social-link {
+  color: var(--color-primary);
+  text-decoration: none;
+  font-size: 0.9rem;
+  word-break: break-all;
+}
+
+.social-link:hover {
+  text-decoration: underline;
+}
+
+.social-empty {
+  color: var(--color-text-light);
+  font-size: 0.9rem;
+  font-style: italic;
+}
+
+.social-hint {
+  background-color: rgba(37, 99, 235, 0.05);
+  border-left: 4px solid var(--color-primary);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  margin-top: var(--space-4);
+}
+
+.social-hint p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--color-text);
+}
+
+.social-badges {
+  margin-top: var(--space-6);
+}
+
+.social-badges h4 {
+  margin-bottom: var(--space-3);
+  color: var(--color-text);
+}
+
+.badges-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.social-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background-color: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  color: var(--color-text);
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+
+.social-badge:hover {
+  background-color: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+  transform: translateY(-1px);
+}
+
+.badge-icon {
+  font-size: 1rem;
+}
+
+.badge-label {
+  font-weight: 500;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .social-grid {
+    grid-template-columns: 1fr;
+  }
+}

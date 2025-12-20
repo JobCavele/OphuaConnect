@@ -1,208 +1,167 @@
-﻿generator client {
+generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
-  url = "file:./dev.db"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
-
-// ========== ENUMS ==========
-
-enum UserRole {
-  SUPER_ADMIN
-  COMPANY_ADMIN  
-  EMPLOYEE
-  PERSONAL
-}
-
-enum InvitationStatus {
-  PENDING
-  ACCEPTED
-  EXPIRED
-  REVOKED
-}
-
-// ========== MODELOS PRINCIPAIS ==========
 
 model User {
-  id             String        @id @default(cuid())
-  email          String        @unique
-  passwordHash   String
-  role           UserRole      @default(PERSONAL)
-  isActive       Boolean       @default(true)
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-
-  // Relações
-  personalProfile   PersonalProfile?
-  companyAdmin      CompanyAdmin?
-  employeeProfile   EmployeeProfile?
+  id               Int                @id @default(autoincrement())
+  email            String             @unique
+  password         String
+  role             UserRole           @default(PERSONAL)
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  
+  personalProfile  PersonalProfile?
+  employeeProfile  EmployeeProfile?
+  companyAdmin     CompanyAdmin?
+  
   passwordResetTokens PasswordResetToken[]
-
+  
   @@map("users")
 }
 
+enum UserRole {
+  PERSONAL
+  EMPLOYEE
+  COMPANY_ADMIN
+  SUPER_ADMIN
+}
+
 model PersonalProfile {
-  id          String   @id @default(cuid())
-  userId      String   @unique
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  fullName    String
-  title       String?   // Ex: "Desenvolvedor Frontend", "Designer UX"
-  bio         String?
-  website     String?
-  phone       String?
-  socialLinks String?   // JSON: [{platform: "linkedin", url: "..."}]
-  profileSlug String   @unique
-  qrCodeUrl   String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Tema personalizável
-  themeSettingsId String? @unique
-  themeSettings   ThemeSettings? @relation(fields: [themeSettingsId], references: [id])
-
+  id              Int           @id @default(autoincrement())
+  fullName        String
+  phone           String?
+  bio             String?
+  avatarUrl       String?
+  
+  userId          Int           @unique
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  themeSettingsId Int           @unique
+  themeSettings   ThemeSettings @relation(fields: [themeSettingsId], references: [id])
+  
+  socialLinks     Json?
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
   @@map("personal_profiles")
 }
 
 model Company {
-  id          String   @id @default(cuid())
-  name        String   @unique
-  displayName String
-  description String?
-  website     String?
-  logoUrl     String?
-  phone       String?
-  email       String?
-  address     String?
-  socialLinks String?   // JSON: [{platform: "instagram", url: "..."}]
-  slug        String   @unique
-  isVerified  Boolean  @default(false)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relações
-  admins      CompanyAdmin[]
-  employees   EmployeeProfile[]
-  invitations CompanyInvitation[]
+  id              Int                @id @default(autoincrement())
+  name            String
+  slug            String?            @unique
+  website         String?
+  description     String?
+  logoUrl         String?
+  socialLinks     Json?
   
-  // Tema da empresa (cores do logo)
-  themeSettingsId String @unique
-  themeSettings   ThemeSettings @relation(fields: [themeSettingsId], references: [id])
-
+  themeSettingsId Int                @unique
+  themeSettings   ThemeSettings      @relation(fields: [themeSettingsId], references: [id])
+  
+  admins          CompanyAdmin[]
+  employees       EmployeeProfile[]
+  invitations     CompanyInvitation[]
+  
+  status          CompanyStatus      @default(ACTIVE)
+  
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  
   @@map("companies")
 }
 
+enum CompanyStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
 model CompanyAdmin {
-  id        String   @id @default(cuid())
-  userId    String   @unique
+  id        Int      @id @default(autoincrement())
+  userId    Int      @unique
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  companyId String
+  companyId Int
   company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   
-  // Permissões específicas
-  canManageEmployees Boolean @default(true)
-  canEditCompanyInfo Boolean @default(true)
-  canInviteAdmins    Boolean @default(false)
-  canVerifyEmployees Boolean @default(true)
-
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
+  
   @@map("company_admins")
 }
 
 model EmployeeProfile {
-  id          String   @id @default(cuid())
-  userId      String   @unique
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  companyId   String
-  company     Company  @relation(fields: [companyId], references: [id])
+  id              Int              @id @default(autoincrement())
+  fullName        String
+  position        String?
+  phone           String?
+  bio             String?
+  avatarUrl       String?
   
-  fullName    String
-  position    String     // Cargo
-  department  String?
-  employeeId  String?    // ID interno da empresa
-  bio         String?
-  phone       String?
-  email       String?    // Email corporativo (pode ser diferente do user.email)
-  socialLinks String?    // JSON: [{platform: "linkedin", url: "..."}]
-  profileSlug String   @unique
-  qrCodeUrl   String?
+  userId          Int              @unique
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   
-  // Status
-  isApproved  Boolean  @default(false)  // Aprovado pelo admin da empresa
-  isActive    Boolean  @default(true)
-
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
+  companyId       Int
+  company         Company          @relation(fields: [companyId], references: [id])
+  
+  themeSettingsId Int              @unique
+  themeSettings   ThemeSettings    @relation(fields: [themeSettingsId], references: [id])
+  
+  socialLinks     Json?
+  status          EmployeeStatus   @default(PENDING)
+  
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  
   @@map("employee_profiles")
 }
 
-// ========== MODELOS DE SUPORTE ==========
+enum EmployeeStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+model ThemeSettings {
+  id             Int              @id @default(autoincrement())
+  primaryColor   String           @default("#3B82F6")
+  secondaryColor String           @default("#1E40AF")
+  fontFamily     String           @default("Inter")
+  
+  personalProfile PersonalProfile?
+  employeeProfile EmployeeProfile?
+  company         Company?
+  
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  
+  @@map("theme_settings")
+}
 
 model CompanyInvitation {
-  id           String   @id @default(cuid())
-  companyId    String
-  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  id          Int      @id @default(autoincrement())
+  companyId   Int
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  token       String   @unique
+  email       String?
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
   
-  inviteToken  String   @unique
-  inviteUrl    String   // URL completa: /invite/:token
-  
-  // Dados do convite
-  email        String?    // Email convidado
-  role         UserRole   @default(EMPLOYEE)
-  invitedByName String?   // Quem convidou
-  
-  // Validade
-  expiresAt    DateTime
-  status       String     @default("PENDING") // PENDING, ACCEPTED, EXPIRED, REVOKED
-  
-  // Uso
-  usedById     String?
-  usedBy       User?      @relation(fields: [usedById], references: [id])
-  usedAt       DateTime?
-
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
   @@map("company_invitations")
 }
 
 model PasswordResetToken {
-  id        String   @id @default(cuid())
-  userId    String
+  id        Int      @id @default(autoincrement())
+  userId    Int      @unique
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   token     String   @unique
   expiresAt DateTime
-  used      Boolean  @default(false)
   createdAt DateTime @default(now())
-
+  
   @@map("password_reset_tokens")
-}
-
-model ThemeSettings {
-  id              String   @id @default(cuid())
-  
-  // Cores principais (extraídas do logo ou personalizadas)
-  primaryColor    String   @default("#3B82F6")   // Azul Tailwind
-  secondaryColor  String   @default("#10B981")   // Verde
-  accentColor     String   @default("#F59E0B")   // Âmbar
-  backgroundColor String   @default("#FFFFFF")   // Branco
-  textColor       String   @default("#1F2937")   // Cinza escuro
-  
-  // Metadados
-  source          String?  // "logo", "custom", "default"
-  logoColors      String?  // JSON com cores extraídas do logo
-
-  // Relações (1:1 opcional)
-  company         Company?
-  personalProfile PersonalProfile?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("theme_settings")
 }

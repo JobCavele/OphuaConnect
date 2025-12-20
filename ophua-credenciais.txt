@@ -1,0 +1,9 @@
+{
+	"success": true,
+	"message": "Super admin route is working!",
+	"data": {
+		"email": "admin@ophuaconnect.com",
+		"fullName": "Super Admin",
+		"role": "super_admin"
+	}
+}

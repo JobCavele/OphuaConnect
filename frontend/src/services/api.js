@@ -1,47 +1,71 @@
-import axios from 'axios';
+﻿const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
-// Configuração base da API
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+export const uploadFile = async (file) => {
+  try {
+    const formData = new FormData();
+    formData.append("file", file);
 
-const api = axios.create({
-  baseURL: API_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-// Interceptor para adicionar token JWT
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
-
-// Interceptor para tratamento de erros
-api.interceptors.response.use(
-  (response) => response.data,
-  (error) => {
-    if (error.response?.status === 401) {
-      // Token expirado ou inválido
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
-    }
-    
-    // Retornar erro formatado
-    return Promise.reject({
-      message: error.response?.data?.error || 'Erro na conexão com o servidor',
-      status: error.response?.status,
-      data: error.response?.data
+    const response = await fetch(`${API_URL}/upload`, {
+      method: "POST",
+      body: formData,
     });
+
+    if (!response.ok) {
+      throw new Error("Erro no upload");
+    }
+
+    const data = await response.json();
+    return data.fileUrl;
+  } catch (error) {
+    console.error("Upload Error:", error);
+    throw error;
   }
-);
+};
+
+export const apiRequest = async (endpoint, options = {}) => {
+  try {
+    const token = localStorage.getItem("token");
+
+    const defaultHeaders = {
+      "Content-Type": "application/json",
+    };
+
+    if (token) {
+      defaultHeaders["Authorization"] = `Bearer ${token}`;
+    }
+
+    let body = options.body;
+    let headers = { ...defaultHeaders };
+
+    if (body instanceof FormData) {
+      delete headers["Content-Type"];
+    }
+
+    const response = await fetch(`${API_URL}${endpoint}`, {
+      ...options,
+      headers: {
+        ...headers,
+        ...options.headers,
+      },
+      body: body instanceof FormData ? body : JSON.stringify(body),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Erro na requisição");
+    }
+
+    return data;
+  } catch (error) {
+    console.error(`API Request Error (${endpoint}):`, error);
+    throw error;
+  }
+};
+
+const api = {
+  uploadFile,
+  apiRequest,
+};
 
 export default api;
