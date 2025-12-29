@@ -1,36 +1,74 @@
+// src/services/auth.service.js
 import { apiRequest } from "./api.js";
 
 export const authService = {
   async login(credentials) {
-    return apiRequest("/auth/login", {
+    console.log("🔐 Login service called with:", credentials);
+    
+    const response = await apiRequest("/auth/login", {
       method: "POST",
       body: credentials,
     });
+    
+    console.log("🔐 Login service response:", response);
+    
+    // Se apiRequest já retornou um objeto com success: false, retorne-o
+    if (response.success === false) {
+      return response;
+    }
+    
+    // Se chegou aqui, a requisição foi bem-sucedida
+    return response;
   },
 
   async registerPersonal(userData) {
-    return apiRequest("/auth/register/personal", {
+    const response = await apiRequest("/auth/register/personal", {
       method: "POST",
       body: userData,
     });
+    
+    if (response.success === false) {
+      return response;
+    }
+    
+    return response;
   },
 
   async registerCompany(companyData) {
-    return apiRequest("/auth/register/company", {
+    const response = await apiRequest("/auth/register/company", {
       method: "POST",
       body: companyData,
     });
+    
+    if (response.success === false) {
+      return response;
+    }
+    
+    return response;
   },
 
   async registerEmployee(employeeData, companySlug) {
-    return apiRequest(`/auth/register/employee/${companySlug}`, {
+    const response = await apiRequest(`/auth/register/employee/${companySlug}`, {
       method: "POST",
       body: employeeData,
     });
+    
+    if (response.success === false) {
+      return response;
+    }
+    
+    return response;
   },
 
   async verifyToken() {
-    return apiRequest("/auth/verify");
+    const response = await apiRequest("/auth/verify");
+    
+    if (response.success === false) {
+      this.logout();
+      return response;
+    }
+    
+    return response;
   },
 
   logout() {

@@ -14,40 +14,41 @@ const Login = () => {
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
+  e.preventDefault();
+  setError("");
+  setLoading(true);
 
-    try {
-      const result = await login(email, password);
+  try {
+    // CORRIJA ESTA LINHA - passe um objeto em vez de dois parâmetros
+    const result = await login({ email, password }); // ← AQUI ESTÁ O ERRO
 
-      if (result.success) {
-        const user = result.user;
+    if (result.success) {
+      const user = result.user;
 
-        switch (user.role) {
-          case "SUPER_ADMIN":
-            navigate("/admin");
-            break;
-          case "COMPANY_ADMIN":
-            navigate("/company");
-            break;
-          case "EMPLOYEE":
-          case "PERSONAL":
-            navigate("/personal");
-            break;
-          default:
-            navigate("/dashboard");
-        }
-      } else {
-        setError(result.error);
+      switch (user.role) {
+        case "SUPER_ADMIN":
+          navigate("/admin");
+          break;
+        case "COMPANY_ADMIN":
+          navigate("/company");
+          break;
+        case "EMPLOYEE":
+        case "PERSONAL":
+          navigate("/personal");
+          break;
+        default:
+          navigate("/dashboard");
       }
-    } catch (err) {
-      setError("Erro ao fazer login. Tente novamente.");
-      console.error("Login error:", err);
-    } finally {
-      setLoading(false);
+    } else {
+      setError(result.error);
     }
-  };
+  } catch (err) {
+    setError("Erro ao fazer login. Tente novamente.");
+    console.error("Login error:", err);
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="login-page">

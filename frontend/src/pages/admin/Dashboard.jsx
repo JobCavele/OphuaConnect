@@ -1,83 +1,100 @@
 ﻿import React, { useState, useEffect } from "react";
 import "../../styles/pages/Admin.css";
 
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
 const AdminDashboard = () => {
   const [stats, setStats] = useState({
-    totalCompanies: 0,
-    totalUsers: 0,
+    totalEmployees: 0,
+    activeEmployees: 0,
     pendingApprovals: 0,
-    activeCompanies: 0,
   });
 
-  const [companies, setCompanies] = useState([]);
+  const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // ---------- BUSCA DADOS REAIS ----------
   useEffect(() => {
-    // Simular carregamento de dados
-    setTimeout(() => {
-      setStats({
-        totalCompanies: 45,
-        totalUsers: 320,
-        pendingApprovals: 12,
-        activeCompanies: 33,
-      });
+    const fetchData = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) throw new Error("Sem token");
 
-      setCompanies([
-        {
-          id: 1,
-          name: "Tech Solutions",
-          email: "contact@techsolutions.com",
-          status: "active",
-          employees: 24,
-          createdAt: "2024-01-15",
-        },
-        {
-          id: 2,
-          name: "Design Studio",
-          email: "hello@designstudio.com",
-          status: "pending",
-          employees: 8,
-          createdAt: "2024-02-10",
-        },
-        {
-          id: 3,
-          name: "Marketing Pro",
-          email: "info@marketingpro.com",
-          status: "active",
-          employees: 15,
-          createdAt: "2024-01-28",
-        },
-      ]);
+        const [dashRes, empRes] = await Promise.all([
+          fetch(`${API_URL}/api/company/dashboard`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          fetch(`${API_URL}/api/company/employees`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+        ]);
 
-      setLoading(false);
-    }, 1000);
+        if (!dashRes.ok || !empRes.ok) throw new Error("Erro ao carregar dados");
+
+        const dash = await dashRes.json();
+        const emp = await empRes.json();
+
+        setStats(dash);
+        setEmployees(emp);
+      } catch (err) {
+        console.error("AdminDashboard →", err);
+        alert("Não foi possível carregar os dados do painel.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
   }, []);
 
-  const handleApprove = (companyId) => {
-    alert(`Aprovar empresa ${companyId}`);
-    // Lógica de aprovação
-  };
-
-  const handleReject = (companyId) => {
-    if (window.confirm("Tem certeza que deseja rejeitar esta empresa?")) {
-      alert(`Rejeitar empresa ${companyId}`);
-      // Lógica de rejeição
+  // ---------- AÇÕES ----------
+  const handleApprove = async (id) => {
+    const token = localStorage.getItem("token");
+    try {
+      const res = await fetch(`${API_URL}/api/company/employees/${id}/approve`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Erro ao aprovar");
+      alert("Funcionário aprovado!");
+      setEmployees((prev) =>
+        prev.map((e) => (e.id === id ? { ...e, status: "approved" } : e))
+      );
+    } catch (err) {
+      alert("Falha ao aprovar");
     }
   };
 
-  if (loading) {
+  const handleReject = async (id) => {
+    if (!window.confirm("Tem certeza que deseja rejeitar este funcionário?")) return;
+    const token = localStorage.getItem("token");
+    try {
+      const res = await fetch(`${API_URL}/api/company/employees/${id}/reject`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Erro ao rejeitar");
+      alert("Funcionário rejeitado");
+      setEmployees((prev) => prev.filter((e) => e.id !== id));
+    } catch (err) {
+      alert("Falha ao rejeitar");
+    }
+  };
+
+  // ---------- LOADING ----------
+  if (loading)
     return (
       <div className="admin-page">
         <div className="admin-content">
           <div className="loading-state">
-            <div className="loading-spinner"></div>
+            <div className="loading-spinner" />
             <p>Carregando...</p>
           </div>
         </div>
       </div>
     );
-  }
 
+  // ---------- RENDER ----------
   return (
     <div className="admin-page">
       <header className="admin-header">
@@ -86,76 +103,47 @@ const AdminDashboard = () => {
             <h1>OphuaConnect Admin</h1>
           </div>
           <div className="admin-menu">
-            <a href="/admin" className="menu-item active">
-              Dashboard
-            </a>
-            <a href="/admin/companies" className="menu-item">
-              Empresas
-            </a>
-            <a href="/admin/users" className="menu-item">
-              Usuários
-            </a>
-            <a href="/admin/settings" className="menu-item">
-              Configurações
-            </a>
-            <a href="/logout" className="menu-item logout">
-              Sair
-            </a>
+            <a href="/admin" className="menu-item active">Dashboard</a>
+            <a href="/admin/companies" className="menu-item">Empresas</a>
+            <a href="/admin/users" className="menu-item">Usuários</a>
+            <a href="/admin/settings" className="menu-item">Configurações</a>
+            <a href="/logout" className="menu-item logout">Sair</a>
           </div>
         </nav>
       </header>
 
       <main className="admin-content">
+        {/* ---------- STATS ---------- */}
         <div className="stats-grid">
           <div className="stat-card">
-            <div className="stat-icon companies-icon">
-              <span>🏢</span>
-            </div>
+            <div className="stat-icon companies-icon"><span>👥</span></div>
             <div className="stat-info">
-              <h3>Total de Empresas</h3>
-              <div className="stat-number">{stats.totalCompanies}</div>
-              <div className="stat-trend positive">+5 este mês</div>
+              <h3>Total de Funcionários</h3>
+              <div className="stat-number">{stats.totalEmployees}</div>
             </div>
           </div>
 
           <div className="stat-card">
-            <div className="stat-icon users-icon">
-              <span>👥</span>
-            </div>
+            <div className="stat-icon active-icon"><span>✅</span></div>
             <div className="stat-info">
-              <h3>Total de Usuários</h3>
-              <div className="stat-number">{stats.totalUsers}</div>
-              <div className="stat-trend positive">+42 este mês</div>
+              <h3>Ativos</h3>
+              <div className="stat-number">{stats.activeEmployees}</div>
             </div>
           </div>
 
           <div className="stat-card">
-            <div className="stat-icon pending-icon">
-              <span>⏳</span>
-            </div>
+            <div className="stat-icon pending-icon"><span>⏳</span></div>
             <div className="stat-info">
-              <h3>Aprovações Pendentes</h3>
+              <h3>Pendentes</h3>
               <div className="stat-number">{stats.pendingApprovals}</div>
-              <div className="stat-trend warning">Revisão necessária</div>
-            </div>
-          </div>
-
-          <div className="stat-card">
-            <div className="stat-icon active-icon">
-              <span>✅</span>
-            </div>
-            <div className="stat-info">
-              <h3>Empresas Ativas</h3>
-              <div className="stat-number">{stats.activeCompanies}</div>
-              <div className="stat-trend positive">+3 este mês</div>
             </div>
           </div>
         </div>
 
+        {/* ---------- TABELA ---------- */}
         <div className="companies-section">
           <div className="section-header">
-            <h2>Empresas Recentes</h2>
-            <button className="create-button">+ Nova Empresa</button>
+            <h2>Funcionários</h2>
           </div>
 
           <div className="table-container">
@@ -164,54 +152,30 @@ const AdminDashboard = () => {
                 <tr>
                   <th>Nome</th>
                   <th>Email</th>
+                  <th>Cargo</th>
                   <th>Status</th>
-                  <th>Funcionários</th>
-                  <th>Data de Cadastro</th>
+                  <th>Data</th>
                   <th>Ações</th>
                 </tr>
               </thead>
               <tbody>
-                {companies.map((company) => (
-                  <tr key={company.id}>
-                    <td className="company-name">
-                      <strong>{company.name}</strong>
-                    </td>
-                    <td>{company.email}</td>
+                {employees.map((e) => (
+                  <tr key={e.id}>
+                    <td className="company-name"><strong>{e.name}</strong></td>
+                    <td>{e.email}</td>
+                    <td>{e.position}</td>
                     <td>
-                      <span className={`status-badge ${company.status}`}>
-                        {company.status === "active"
-                          ? "Ativo"
-                          : company.status === "pending"
-                          ? "Pendente"
-                          : "Inativo"}
+                      <span className={`status-badge ${e.status}`}>
+                        {e.status === "approved" ? "Ativo" : e.status === "pending" ? "Pendente" : "Inativo"}
                       </span>
                     </td>
-                    <td>{company.employees}</td>
-                    <td>{company.createdAt}</td>
+                    <td>{e.createdAt}</td>
                     <td>
                       <div className="action-buttons">
-                        <button
-                          className="action-btn view-btn"
-                          onClick={() =>
-                            (window.location.href = `/company/${company.id}`)
-                          }
-                        >
-                          Ver
-                        </button>
-                        {company.status === "pending" && (
+                        {e.status === "pending" && (
                           <>
-                            <button
-                              className="action-btn approve-btn"
-                              onClick={() => handleApprove(company.id)}
-                            >
-                              Aprovar
-                            </button>
-                            <button
-                              className="action-btn reject-btn"
-                              onClick={() => handleReject(company.id)}
-                            >
-                              Rejeitar
-                            </button>
+                            <button className="action-btn approve-btn" onClick={() => handleApprove(e.id)}>Aprovar</button>
+                            <button className="action-btn reject-btn" onClick={() => handleReject(e.id)}>Rejeitar</button>
                           </>
                         )}
                       </div>
@@ -222,11 +186,10 @@ const AdminDashboard = () => {
             </table>
           </div>
 
-          {companies.length === 0 && (
+          {employees.length === 0 && (
             <div className="empty-state">
               <div className="empty-icon">📋</div>
-              <p>Nenhuma empresa cadastrada ainda.</p>
-              <button className="create-button">Criar Primeira Empresa</button>
+              <p>Nenhum funcionário cadastrado ainda.</p>
             </div>
           )}
         </div>

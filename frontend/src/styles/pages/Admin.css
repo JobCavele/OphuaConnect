@@ -53,6 +53,223 @@
   transition: all 0.3s;
   font-size: 14px;
 }
+/*mudei */
+.action-btn.add-btn {
+  background: var(--success);
+  color: #fff;
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  margin-left: 8px;
+}
+/* Edição inline */
+.inline-input,
+.inline-select {
+  width: 100%;
+  padding: 4px 6px;
+  font-size: 0.85rem;
+  border: 1px solid var(--gray-300);
+  border-radius: 4px;
+  background: var(--white);
+  color: var(--gray-800);
+  margin-top: 4px;
+}
+
+/* Botão pequeno */
+.action-btn.add-btn {
+  background: var(--success);
+  color: #fff;
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  margin-left: 8px;
+}
+
+/* Form rápido */
+.form-fields-inline {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.form-fields-inline input {
+  flex: 1 1 200px;
+}
+/* Botão “Criar Funcionário” */
+.submit-button {
+  background: var(--color-primary);
+  color: var(--color-surface);
+  border: none;
+  padding: 10px 20px;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-size: 14px;
+}
+
+.submit-button:hover {
+  opacity: 0.9;
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+/* Botão “Cancelar” */
+.cancel-button {
+  background: var(--gray-400);
+  color: var(--color-surface);
+  border: none;
+  padding: 10px 20px;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-size: 14px;
+}
+
+.cancel-button:hover {
+  background: var(--gray-500);
+}
+
+
+
+/* Card de formulário */
+.card-form {
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: 8px;
+  padding: 24px;
+  margin-top: 24px;
+}
+.form-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.form-group.full-width {
+  grid-column: 1 / -1;
+}
+.form-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+.submit-button {
+  background: var(--primary);
+  color: #fff;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.cancel-button {
+  background: var(--gray-400);
+  color: #fff;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+/* Avatar pequeno */
+.avatar-small {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--gray-200);
+}
+
+/* Upload bonito */
+.file-upload-wrapper {
+  position: relative;
+  display: inline-block;
+  cursor: pointer;
+}
+.file-input {
+  display: none;
+}
+.file-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: var(--gray-100);
+  border: 1px dashed var(--gray-400);
+  border-radius: 6px;
+  color: var(--gray-700);
+  transition: 0.2s;
+}
+.file-label:hover {
+  background: var(--gray-200);
+}
+.upload-icon {
+  font-size: 1.2rem;
+}
+.upload-text {
+  font-size: 0.9rem;
+}
+.file-preview {
+  margin-top: 12px;
+}
+.preview-image {
+  width: 100px;
+  height: 100px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 2px solid var(--gray-200);
+}
+
+
+
+
+/* Edição inline */
+.inline-input,
+.inline-select {
+  width: 100%;
+  padding: 4px 6px;
+  font-size: 0.85rem;
+  border: 1px solid var(--gray-300);
+  border-radius: 4px;
+  background: var(--white);
+  color: var(--gray-800);
+  margin-top: 4px;
+}
+
+/* Botão pequeno */
+.action-buttons {
+  display: flex;
+  gap: 8px;
+}
+.action-btn.add-btn {
+  background: var(--success);
+  color: #fff;
+  padding: 4px 10px;
+  font-size: 0.75rem;
+}
+
+/* Form rápido */
+.form-fields-inline {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.form-fields-inline input {
+  flex: 1 1 200px;
+}
+.cancel-button {
+  background: var(--gray-400);
+  color: #fff;
+}
+
+
+
+
 
 .menu-item:hover,
 .menu-item.active {

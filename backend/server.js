@@ -10,7 +10,7 @@ const Database = require("./src/utils/database");
 
 const app = express();
 
-// Middleware
+// ---------- MIDDLEWARE ----------
 app.use(helmet());
 app.use(
   cors({
@@ -21,7 +21,40 @@ app.use(
 app.use(morgan("dev"));
 app.use(express.json());
 
-// ROTAS SIMPLES DIRETAS (sem importação complexa)
+// ---------- FUNÇÃO AUXILIAR PARA VERIFICAR TOKEN ----------
+const verifyToken = (token) => {
+  try {
+    const jwt = require("jsonwebtoken");
+    return jwt.verify(token, process.env.JWT_SECRET || "ophuaconnect-secret-2025");
+  } catch {
+    return null;
+  }
+};
+
+// ---------- UPLOAD ----------
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dir = "uploads/";
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    const unique = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, `${file.fieldname}-${unique}${path.extname(file.originalname)}`);
+  },
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    file.mimetype.startsWith("image/") ? cb(null, true) : cb(new Error("Apenas imagens são permitidas"));
+  },
+});
+
+// ---------- ROTAS DE AUTENTICAÇÃO ----------
+
+// LOGIN
 app.post("/api/auth/login", async (req, res) => {
   try {
     const { PrismaClient } = require("@prisma/client");
@@ -31,129 +64,49 @@ app.post("/api/auth/login", async (req, res) => {
     const prisma = new PrismaClient();
     const { email, password } = req.body;
 
-    console.log("🔐 Login attempt:", email);
-
     if (!email || !password) {
-      return res.status(400).json({
-        success: false,
-        error: "Email e senha são obrigatórios",
-      });
+      return res.status(400).json({ success: false, error: "Email e senha são obrigatórios" });
     }
 
     const user = await prisma.user.findUnique({
       where: { email },
       include: {
         personalProfile: true,
-        companyAdmin: {
-          include: {
-            company: true,
-          },
-        },
-        employeeProfile: {
-          include: {
-            company: true,
-          },
-        },
+        companyAdmin: { include: { company: true } },
+        employeeProfile: { include: { company: true } },
       },
     });
 
-    if (!user) {
-      console.log("❌ Usuário não encontrado");
-      return res.status(401).json({
-        success: false,
-        error: "Credenciais inválidas",
-      });
-    }
+    if (!user) return res.status(401).json({ success: false, error: "Credenciais inválidas" });
 
     const validPassword = await bcrypt.compare(password, user.password);
-
-    if (!validPassword) {
-      console.log("❌ Senha incorreta");
-      return res.status(401).json({
-        success: false,
-        error: "Credenciais inválidas",
-      });
-    }
-
-    // Preparar dados do usuário baseado no role
-    let userData = {
-      id: user.id,
-      email: user.email,
-      role: user.role,
-      createdAt: user.createdAt,
-    };
-
-    // Adicionar dados específicos baseado no role
-    if (user.role === "PERSONAL" && user.personalProfile) {
-      userData = {
-        ...userData,
-        fullName: user.personalProfile.fullName,
-        phone: user.personalProfile.phone,
-        bio: user.personalProfile.bio,
-        avatarUrl: user.personalProfile.avatarUrl,
-      };
-    } else if (
-      user.role === "COMPANY_ADMIN" &&
-      user.companyAdmin?.[0]?.company
-    ) {
-      const company = user.companyAdmin[0].company;
-      userData = {
-        ...userData,
-        fullName: "Administrador", // Pode precisar ajustar
-        company: {
-          id: company.id,
-          name: company.name,
-          slug: company.slug,
-          website: company.website,
-        },
-      };
-    } else if (user.role === "EMPLOYEE" && user.employeeProfile) {
-      userData = {
-        ...userData,
-        fullName: user.employeeProfile.fullName,
-        position: user.employeeProfile.position,
-        phone: user.employeeProfile.phone,
-        company: user.employeeProfile.company
-          ? {
-              id: user.employeeProfile.company.id,
-              name: user.employeeProfile.company.name,
-            }
-          : null,
-      };
-    }
+    if (!validPassword) return res.status(401).json({ success: false, error: "Credenciais inválidas" });
 
     const token = jwt.sign(
-      {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-      },
+      { id: user.id, email: user.email, role: user.role },
       process.env.JWT_SECRET || "ophuaconnect-secret-2025",
       { expiresIn: "7d" }
     );
 
-    console.log("✅ Login bem-sucedido:", email);
+    let userData = { id: user.id, email: user.email, role: user.role, createdAt: user.createdAt };
 
-    res.json({
-      success: true,
-      token,
-      user: userData,
-      message: "Login realizado com sucesso",
-    });
+    if (user.role === "PERSONAL" && user.personalProfile) {
+      userData = { ...userData, ...user.personalProfile };
+    } else if (user.role === "COMPANY_ADMIN" && user.companyAdmin?.[0]?.company) {
+      userData.company = user.companyAdmin[0].company;
+    } else if (user.role === "EMPLOYEE" && user.employeeProfile) {
+      userData = { ...userData, ...user.employeeProfile, company: user.employeeProfile.company };
+    }
 
+    res.json({ success: true, token, user: userData });
     await prisma.$disconnect();
   } catch (error) {
     console.error("🔥 Login error:", error);
-    res.status(500).json({
-      success: false,
-      error: "Erro interno do servidor",
-    });
+    res.status(500).json({ success: false, error: "Erro interno do servidor" });
   }
 });
 
-// Registrar conta pessoal
-// Substitua a rota de registro pessoal por:
-
+// REGISTER PERSONAL
 app.post("/api/auth/register/personal", async (req, res) => {
   try {
     const { PrismaClient } = require("@prisma/client");
@@ -161,110 +114,45 @@ app.post("/api/auth/register/personal", async (req, res) => {
     const jwt = require("jsonwebtoken");
 
     const prisma = new PrismaClient();
-    const { email, password, fullName, phone, bio } = req.body;
-
-    console.log("📝 Registro pessoal:", email);
+    const { email, password, fullName, phone, bio, jobTitle, ...social } = req.body;
 
     if (!email || !password || !fullName) {
-      return res.status(400).json({
-        success: false,
-        error: "Todos os campos são obrigatórios",
-      });
+      return res.status(400).json({ success: false, error: "Campos obrigatórios faltando" });
     }
 
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
-    });
-
-    if (existingUser) {
-      return res.status(400).json({
-        success: false,
-        error: "Email já registrado",
-      });
-    }
+    const existingUser = await prisma.user.findUnique({ where: { email } });
+    if (existingUser) return res.status(400).json({ success: false, error: "Email já registrado" });
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Transação para criar tudo junto
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Criar usuário
-      const user = await tx.user.create({
-        data: {
-          email,
-          password: hashedPassword,
-          role: "PERSONAL",
-        },
-      });
-
-      // 2. Criar configurações de tema
-      const themeSettings = await tx.themeSettings.create({
-        data: {
-          primaryColor: "#3B82F6",
-          secondaryColor: "#1E40AF",
-        },
-      });
-
-      // 3. Criar perfil pessoal
+      const user = await tx.user.create({ data: { email, password: hashedPassword, role: "PERSONAL" } });
+      const themeSettings = await tx.themeSettings.create({ data: { primaryColor: "#3B82F6", secondaryColor: "#1E40AF" } });
       const personalProfile = await tx.personalProfile.create({
-        data: {
-          fullName,
-          phone: phone || null,
-          bio: bio || null,
-          userId: user.id,
-          themeSettingsId: themeSettings.id,
-          socialLinks: {}, // Inicialmente vazio
-        },
+        data: { fullName, phone, bio, jobTitle, userId: user.id, themeSettingsId: themeSettings.id, socialLinks: social },
       });
-
       return { user, personalProfile };
     });
 
-    const { user } = result;
+    const token = jwt.sign({ id: result.user.id, email, role: "PERSONAL" }, process.env.JWT_SECRET || "ophuaconnect-secret-2025", { expiresIn: "7d" });
 
-    const token = jwt.sign(
-      {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-      },
-      process.env.JWT_SECRET || "ophuaconnect-secret-2025",
-      { expiresIn: "7d" }
-    );
-
-    const { password: _, ...userWithoutPassword } = user;
-
-    console.log("✅ Registro bem-sucedido:", email);
-
-    res.status(201).json({
-      success: true,
-      token,
-      user: {
-        ...userWithoutPassword,
-        fullName, // Incluir no response
-        phone: phone || null,
-        bio: bio || null,
-      },
-      message: "Conta pessoal criada com sucesso",
-    });
-
+    res.status(201).json({ success: true, token, user: { ...result.user, ...result.personalProfile } });
     await prisma.$disconnect();
   } catch (error) {
-    console.error("🔥 Register error:", error);
-    res.status(500).json({
-      success: false,
-      error: "Erro ao criar conta",
-    });
+    console.error("🔥 Register personal error:", error);
+    res.status(500).json({ success: false, error: "Erro ao criar conta pessoal" });
   }
 });
-// Registrar conta empresarial
 
-app.post("/api/auth/register/company", async (req, res) => {
+// REGISTER COMPANY (com logo opcional)
+app.post("/api/auth/register/company", upload.single("logo"), async (req, res) => {
   try {
     const { PrismaClient } = require("@prisma/client");
     const bcrypt = require("bcryptjs");
     const jwt = require("jsonwebtoken");
 
     const prisma = new PrismaClient();
+    const body = req.body;
     const {
       email,
       password,
@@ -280,442 +168,435 @@ app.post("/api/auth/register/company", async (req, res) => {
       linkedin,
       twitter,
       github,
-    } = req.body;
-
-    console.log("🏢 Registro de empresa:", email);
+    } = body;
 
     if (!email || !password || !companyName || !fullName) {
-      return res.status(400).json({
-        success: false,
-        error: "Campos obrigatórios faltando",
-      });
+      return res.status(400).json({ success: false, error: "Campos obrigatórios faltando" });
     }
 
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
-    });
-
-    if (existingUser) {
-      return res.status(400).json({
-        success: false,
-        error: "Email já registrado",
-      });
-    }
+    const existingUser = await prisma.user.findUnique({ where: { email } });
+    if (existingUser) return res.status(400).json({ success: false, error: "Email já registrado" });
 
     const hashedPassword = await bcrypt.hash(password, 10);
+    const slug = companyName.toLowerCase().replace(/\s+/g, "-").replace(/[^\w\-]+/g, "");
 
-    // Criar slug da empresa
-    const slug = companyName
-      .toLowerCase()
-      .replace(/\s+/g, "-")
-      .replace(/[^\w\-]+/g, "")
-      .replace(/\-\-+/g, "-")
-      .replace(/^-+/, "")
-      .replace(/-+$/, "");
-
-    // Começar uma transação
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Criar usuário
-      const user = await tx.user.create({
-        data: {
-          email,
-          password: hashedPassword,
-          role: "COMPANY_ADMIN",
-        },
-      });
-
-      // 2. Criar configurações de tema
-      const themeSettings = await tx.themeSettings.create({
-        data: {
-          primaryColor: "#3B82F6",
-          secondaryColor: "#1E40AF",
-        },
-      });
-
-      // 3. Criar empresa
+      const user = await tx.user.create({ data: { email, password: hashedPassword, role: "COMPANY_ADMIN" } });
+      const themeSettings = await tx.themeSettings.create({ data: { primaryColor: "#3B82F6", secondaryColor: "#1E40AF" } });
       const company = await tx.company.create({
         data: {
           name: companyName,
           slug,
-          website: website || null,
-          description: description || null,
-          logoUrl: null,
-          socialLinks: {
-            facebook: facebook || null,
-            instagram: instagram || null,
-            linkedin: linkedin || null,
-            twitter: twitter || null,
-            github: github || null,
-          },
+          website,
+          description,
+          logoUrl: req.file ? `/uploads/${req.file.filename}` : null,
+          socialLinks: { facebook, instagram, linkedin, twitter, github },
           themeSettingsId: themeSettings.id,
           status: "ACTIVE",
         },
       });
-
-      // 4. Criar perfil de admin da empresa
-      await tx.companyAdmin.create({
-        data: {
-          userId: user.id,
-          companyId: company.id,
-        },
-      });
-
-      return { user, company, themeSettings };
+      await tx.companyAdmin.create({ data: { userId: user.id, companyId: company.id } });
+      return { user, company };
     });
 
-    const { user, company } = result;
-
-    // Gerar token
     const token = jwt.sign(
-      {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-        companyId: company.id,
-      },
+      { id: result.user.id, email, role: "COMPANY_ADMIN", companyId: result.company.id },
       process.env.JWT_SECRET || "ophuaconnect-secret-2025",
       { expiresIn: "7d" }
     );
 
-    const { password: _, ...userWithoutPassword } = user;
-
-    console.log("✅ Empresa registrada:", companyName);
-
-    res.status(201).json({
-      success: true,
-      token,
-      user: {
-        ...userWithoutPassword,
-        fullName, // Mantemos no response para o frontend
-        company: {
-          id: company.id,
-          name: company.name,
-          slug: company.slug,
-        },
-      },
-      message: "Conta empresarial criada com sucesso",
-    });
-
+    res.status(201).json({ success: true, token, user: { ...result.user, company: result.company } });
     await prisma.$disconnect();
   } catch (error) {
     console.error("🔥 Company register error:", error);
-    res.status(500).json({
-      success: false,
-      error: "Erro ao criar conta empresarial",
-    });
+    res.status(500).json({ success: false, error: "Erro ao criar conta empresarial" });
   }
 });
 
-// Registrar conta de funcionário vinculada a uma empresa existente
-app.post("/api/auth/register/employee/:companySlug", async (req, res) => {
+// REGISTER EMPLOYEE (com avatar opcional)
+app.post(
+  "/api/auth/register/employee/:companySlug",
+  upload.single("avatar"),
+  express.urlencoded({ extended: true }),
+  async (req, res) => {
+    try {
+      const { PrismaClient } = require("@prisma/client");
+      const bcrypt = require("bcryptjs");
+      const jwt = require("jsonwebtoken");
+
+      const prisma = new PrismaClient();
+      const { companySlug } = req.params;
+      const {
+        email,
+        password,
+        fullName,
+        position,
+        phone,
+        bio,
+        facebook,
+        instagram,
+        linkedin,
+        twitter,
+        github,
+      } = req.body;
+
+      if (!email || !password || !fullName) {
+        return res.status(400).json({ success: false, error: "Campos obrigatórios faltando" });
+      }
+
+      const company = await prisma.company.findUnique({ where: { slug: companySlug } });
+      if (!company) return res.status(404).json({ success: false, error: "Empresa não encontrada" });
+
+      const existingUser = await prisma.user.findUnique({ where: { email } });
+      if (existingUser) return res.status(400).json({ success: false, error: "Email já registrado" });
+
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      const result = await prisma.$transaction(async (tx) => {
+        const user = await tx.user.create({ data: { email, password: hashedPassword, role: "EMPLOYEE" } });
+        const companyTheme = await tx.themeSettings.findUnique({ where: { id: company.themeSettingsId } });
+        const themeSettings = await tx.themeSettings.create({
+          data: { primaryColor: companyTheme?.primaryColor || "#3B82F6", secondaryColor: companyTheme?.secondaryColor || "#1E40AF" },
+        });
+        const employeeProfile = await tx.employeeProfile.create({
+          data: {
+            fullName,
+            position,
+            phone,
+            bio,
+            avatarUrl: req.file ? `/uploads/${req.file.filename}` : null,
+            userId: user.id,
+            companyId: company.id,
+            themeSettingsId: themeSettings.id,
+            socialLinks: { facebook, instagram, linkedin, twitter, github },
+            status: "PENDING",
+          },
+        });
+        return { user, employeeProfile, company };
+      });
+
+      const token = jwt.sign(
+        { id: result.user.id, email, role: "EMPLOYEE", companyId: company.id, employeeProfileId: result.employeeProfile.id },
+        process.env.JWT_SECRET || "ophuaconnect-secret-2025",
+        { expiresIn: "7d" }
+      );
+
+      res.status(201).json({ success: true, token, user: { ...result.user, ...result.employeeProfile, company } });
+      await prisma.$disconnect();
+    } catch (error) {
+      console.error("🔥 Employee register error:", error);
+      res.status(500).json({ success: false, error: "Erro ao criar conta de funcionário" });
+    }
+  }
+);
+
+// ---------- ROTAS DE EMPRESA (COMPANY_ADMIN OU SUPER_ADMIN) ----------
+const requireAuthCompanyOrSuper = (req, res, next) => {
+  const auth = req.headers.authorization;
+  if (!auth?.startsWith("Bearer ")) return res.status(401).json({ success: false, error: "Token não fornecido" });
+  const decoded = verifyToken(auth.split(" ")[1]);
+  if (!decoded) return res.status(401).json({ success: false, error: "Token inválido" });
+  if (decoded.role !== "COMPANY_ADMIN" && decoded.role !== "SUPER_ADMIN") {
+    return res.status(403).json({ success: false, error: "Acesso negado" });
+  }
+  req.user = decoded;
+  next();
+};
+
+// Dashboard da empresa
+app.get("/api/company/dashboard", requireAuthCompanyOrSuper, async (req, res) => {
   try {
     const { PrismaClient } = require("@prisma/client");
-    const bcrypt = require("bcryptjs");
-    const jwt = require("jsonwebtoken");
-
     const prisma = new PrismaClient();
-    const { companySlug } = req.params;
-    const {
-      email,
-      password,
-      fullName,
-      position,
-      phone,
-      bio,
-      facebook,
-      instagram,
-      linkedin,
-      twitter,
-      github,
-    } = req.body;
 
-    console.log(
-      "👤 Registro de funcionário:",
-      email,
-      "para empresa:",
-      companySlug
-    );
-
-    if (!email || !password || !fullName) {
-      return res.status(400).json({
-        success: false,
-        error: "Campos obrigatórios faltando",
-      });
+    let companyId;
+    if (req.user.role === "SUPER_ADMIN") {
+      companyId = 1;
+    } else {
+      const admin = await prisma.companyAdmin.findUnique({ where: { userId: req.user.id } });
+      if (!admin) return res.status(403).json({ error: "Admin não vinculado a empresa" });
+      companyId = admin.companyId;
     }
 
-    // Buscar empresa pelo slug
-    const company = await prisma.company.findUnique({
-      where: { slug: companySlug },
+    const [totalEmployees, pendingEmployees, activeEmployees] = await prisma.$transaction([
+      prisma.employeeProfile.count({ where: { companyId } }),
+      prisma.employeeProfile.count({ where: { companyId, status: "PENDING" } }),
+      prisma.employeeProfile.count({ where: { companyId, status: "APPROVED" } }),
+    ]);
+    await prisma.$disconnect();
+
+    res.json({ totalEmployees, pendingApprovals: pendingEmployees, activeEmployees });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Erro interno" });
+  }
+});
+
+// Lista de funcionários da empresa
+app.get("/api/company/employees", requireAuthCompanyOrSuper, async (req, res) => {
+  try {
+    const { PrismaClient } = require("@prisma/client");
+    const prisma = new PrismaClient();
+
+    let companyId;
+    if (req.user.role === "SUPER_ADMIN") {
+      companyId = 1;
+    } else {
+      const admin = await prisma.companyAdmin.findUnique({ where: { userId: req.user.id } });
+      if (!admin) return res.status(403).json({ error: "Admin não vinculado a empresa" });
+      companyId = admin.companyId;
+    }
+
+    const employees = await prisma.employeeProfile.findMany({
+      where: { companyId },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, fullName: true, position: true, status: true, createdAt: true, user: { select: { email: true } } },
+    });
+    await prisma.$disconnect();
+
+    const formatted = employees.map((e) => ({
+      id: e.id,
+      name: e.fullName,
+      email: e.user.email,
+      position: e.position || "-",
+      status: e.status.toLowerCase(),
+      createdAt: e.createdAt.toISOString().split("T")[0],
+    }));
+    res.json(formatted);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Erro interno" });
+  }
+});
+
+// Aprovar funcionário (COMPANY_ADMIN / SUPER_ADMIN)
+app.patch("/api/company/employees/:id/approve", requireAuthCompanyOrSuper, async (req, res) => {
+  try {
+    const { PrismaClient } = require("@prisma/client");
+    const prisma = new PrismaClient();
+
+    let companyId;
+    if (req.user.role === "SUPER_ADMIN") {
+      companyId = 1;
+    } else {
+      const admin = await prisma.companyAdmin.findUnique({ where: { userId: req.user.id } });
+      if (!admin) return res.status(403).json({ error: "Admin não vinculado a empresa" });
+      companyId = admin.companyId;
+    }
+
+    const emp = await prisma.employeeProfile.findUnique({
+      where: { id: Number(req.params.id) },
+      select: { companyId: true },
+    });
+    if (!emp || emp.companyId !== companyId) return res.status(404).json({ error: "Funcionário não encontrado" });
+
+    const updated = await prisma.employeeProfile.update({
+      where: { id: emp.id },
+      data: { status: "APPROVED" },
+    });
+    await prisma.$disconnect();
+    res.json({ success: true, message: "Funcionário aprovado", employee: updated });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Erro interno" });
+  }
+});
+
+// Rejeitar funcionário (COMPANY_ADMIN / SUPER_ADMIN)
+app.patch("/api/company/employees/:id/reject", requireAuthCompanyOrSuper, async (req, res) => {
+  try {
+    const { PrismaClient } = require("@prisma/client");
+    const prisma = new PrismaClient();
+
+    let companyId;
+    if (req.user.role === "SUPER_ADMIN") {
+      companyId = 1;
+    } else {
+      const admin = await prisma.companyAdmin.findUnique({ where: { userId: req.user.id } });
+      if (!admin) return res.status(403).json({ error: "Admin não vinculado a empresa" });
+      companyId = admin.companyId;
+    }
+
+    const emp = await prisma.employeeProfile.findUnique({
+      where: { id: Number(req.params.id) },
+      select: { companyId: true },
+    });
+    if (!emp || emp.companyId !== companyId) return res.status(404).json({ error: "Funcionário não encontrado" });
+
+    await prisma.employeeProfile.delete({ where: { id: emp.id } });
+    await prisma.$disconnect();
+    res.json({ success: true, message: "Funcionário rejeitado" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Erro interno" });
+  }
+});
+
+// ---------- ROTAS DE SUPER-ADMIN (GLOBAL) ----------
+
+const requireSuperAdmin = (req, res, next) => {
+  const auth = req.headers.authorization;
+  if (!auth?.startsWith("Bearer ")) return res.status(401).json({ success: false, error: "Token não fornecido" });
+  const decoded = verifyToken(auth.split(" ")[1]);
+  if (!decoded || decoded.role !== "SUPER_ADMIN") return res.status(403).json({ success: false, error: "Acesso negado" });
+  req.user = decoded;
+  next();
+};
+
+// Lista GLOBAL de empresas
+app.get("/api/admin/companies", requireSuperAdmin, async (req, res) => {
+  try {
+    const { PrismaClient } = require("@prisma/client");
+    const prisma = new PrismaClient();
+
+    const companies = await prisma.company.findMany({
+      orderBy: { createdAt: "desc" },
+      include: {
+        _count: { select: { employees: true } },
+        themeSettings: true,
+      },
     });
 
-    if (!company) {
-      return res.status(404).json({
-        success: false,
-        error: "Empresa não encontrada",
-      });
-    }
+    const formatted = companies.map((c) => ({
+      id: c.id,
+      name: c.name,
+      slug: c.slug,
+      website: c.website,
+      description: c.description,
+      logoUrl: c.logoUrl,
+      status: c.status,
+      createdAt: c.createdAt.toISOString().split("T")[0],
+      employeesCount: c._count.employees,
+      theme: c.themeSettings,
+    }));
+    await prisma.$disconnect();
+    res.json(formatted);
+  } catch (err) {
+    console.error("GET /api/admin/companies", err);
+    res.status(500).json({ success: false, error: "Erro interno" });
+  }
+});
 
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
+// Funcionários de UMA empresa (super-admin)
+app.get("/api/admin/companies/:id/employees", requireSuperAdmin, async (req, res) => {
+  try {
+    const { PrismaClient } = require("@prisma/client");
+    const prisma = new PrismaClient();
+    const companyId = Number(req.params.id);
+
+    const employees = await prisma.employeeProfile.findMany({
+      where: { companyId },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, fullName: true, position: true, status: true, createdAt: true, user: { select: { email: true } } },
     });
 
-    if (existingUser) {
-      return res.status(400).json({
-        success: false,
-        error: "Email já registrado",
-      });
-    }
+    const formatted = employees.map((e) => ({
+      id: e.id,
+      name: e.fullName,
+      email: e.user.email,
+      position: e.position || "-",
+      status: e.status.toLowerCase(),
+      createdAt: e.createdAt.toISOString().split("T")[0],
+    }));
+    await prisma.$disconnect();
+    res.json(formatted);
+  } catch (err) {
+    console.error("GET /api/admin/companies/:id/employees", err);
+    res.status(500).json({ success: false, error: "Erro interno" });
+  }
+});
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+// Atualizar empresa
+app.patch("/api/admin/companies/:id", requireSuperAdmin, async (req, res) => {
+  try {
+    const { PrismaClient } = require("@prisma/client");
+    const prisma = new PrismaClient();
+    const companyId = Number(req.params.id);
+    const { name, description, website, status, primaryColor, secondaryColor } = req.body;
 
-    // Transação
-    const result = await prisma.$transaction(async (tx) => {
-      // 1. Criar usuário
-      const user = await tx.user.create({
-        data: {
-          email,
-          password: hashedPassword,
-          role: "EMPLOYEE",
-        },
-      });
+    const company = await prisma.company.update({
+      where: { id: companyId },
+      data: { name, description, website, status },
+    });
 
-      // 2. Criar configurações de tema (usando tema da empresa)
-      const companyTheme = await tx.themeSettings.findUnique({
+    if (primaryColor || secondaryColor) {
+      await prisma.themeSettings.update({
         where: { id: company.themeSettingsId },
+        data: { primaryColor: primaryColor || undefined, secondaryColor: secondaryColor || undefined },
       });
-
-      const themeSettings = await tx.themeSettings.create({
-        data: {
-          primaryColor: companyTheme?.primaryColor || "#3B82F6",
-          secondaryColor: companyTheme?.secondaryColor || "#1E40AF",
-        },
-      });
-
-      // 3. Criar perfil de funcionário
-      const employeeProfile = await tx.employeeProfile.create({
-        data: {
-          fullName,
-          position: position || null,
-          phone: phone || null,
-          bio: bio || null,
-          userId: user.id,
-          companyId: company.id,
-          themeSettingsId: themeSettings.id,
-          socialLinks: {
-            facebook: facebook || null,
-            instagram: instagram || null,
-            linkedin: linkedin || null,
-            twitter: twitter || null,
-            github: github || null,
-          },
-          status: "PENDING", // Precisa de aprovação
-        },
-      });
-
-      return { user, employeeProfile, company };
-    });
-
-    const { user, employeeProfile } = result;
-
-    const token = jwt.sign(
-      {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-        companyId: company.id,
-        employeeProfileId: employeeProfile.id,
-      },
-      process.env.JWT_SECRET || "ophuaconnect-secret-2025",
-      { expiresIn: "7d" }
-    );
-
-    const { password: _, ...userWithoutPassword } = user;
-
-    console.log("✅ Funcionário registrado:", fullName);
-
-    res.status(201).json({
-      success: true,
-      token,
-      user: {
-        ...userWithoutPassword,
-        fullName,
-        position: position || null,
-        phone: phone || null,
-        company: {
-          id: company.id,
-          name: company.name,
-          slug: company.slug,
-        },
-      },
-      message: "Conta de funcionário criada com sucesso. Aguarde aprovação.",
-    });
+    }
 
     await prisma.$disconnect();
-  } catch (error) {
-    console.error("🔥 Employee register error:", error);
-    res.status(500).json({
-      success: false,
-      error: "Erro ao criar conta de funcionário",
-    });
+    res.json({ success: true, message: "Empresa atualizada", company });
+  } catch (err) {
+    console.error("PATCH /api/admin/companies/:id", err);
+    res.status(500).json({ success: false, error: "Erro interno" });
   }
 });
 
-// Health check
-app.get("/api/health", (req, res) => {
-  res.json({
-    status: "OK",
-    timestamp: new Date().toISOString(),
-    version: "1.0.0",
-    message: "OphuaConnect API funcionando",
-  });
-});
-
-// Rota raiz
-app.get("/", (req, res) => {
-  res.json({
-    message: "OphuaConnect Platform API",
-    version: "1.0.0",
-    status: "online",
-    endpoints: {
-      login: "POST /api/auth/login",
-      registerPersonal: "POST /api/auth/register/personal",
-      registerCompany: "POST /api/auth/register/company",
-      upload: "POST /api/upload",
-      health: "GET /api/health",
-    },
-  });
-});
-
-// Configuração do multer
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    const uploadDir = "uploads/";
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-    cb(null, uploadDir);
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(
-      null,
-      file.fieldname + "-" + uniqueSuffix + path.extname(file.originalname)
-    );
-  },
-});
-
-const upload = multer({
-  storage: storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
-  fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith("image/")) {
-      cb(null, true);
-    } else {
-      cb(new Error("Apenas imagens são permitidas"));
-    }
-  },
-});
-
-// Rota de upload
-app.post("/api/upload", upload.single("file"), (req, res) => {
+// ---------- NOVAS ROTAS SUPER-ADMIN: aprovar / rejeitar QUALQUER funcionário ----------
+app.patch("/api/admin/employees/:id/approve", requireSuperAdmin, async (req, res) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        error: "Nenhum arquivo enviado",
-      });
-    }
+    const { PrismaClient } = require("@prisma/client");
+    const prisma = new PrismaClient();
+    const id = Number(req.params.id);
 
-    const fileUrl = `/uploads/${req.file.filename}`;
-
-    res.json({
-      success: true,
-      fileUrl,
-      filename: req.file.filename,
-      message: "Arquivo enviado com sucesso",
+    const updated = await prisma.employeeProfile.update({
+      where: { id },
+      data: { status: "APPROVED" },
     });
-  } catch (error) {
-    console.error("Upload error:", error);
-    res.status(500).json({
-      success: false,
-      error: "Erro ao fazer upload do arquivo",
-    });
+    await prisma.$disconnect();
+    res.json({ success: true, message: "Funcionário aprovado", employee: updated });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Erro interno" });
   }
 });
 
-// Servir arquivos estáticos
+app.patch("/api/admin/employees/:id/reject", requireSuperAdmin, async (req, res) => {
+  try {
+    const { PrismaClient } = require("@prisma/client");
+    const prisma = new PrismaClient();
+    const id = Number(req.params.id);
+
+    await prisma.employeeProfile.delete({ where: { id } });
+    await prisma.$disconnect();
+    res.json({ success: true, message: "Funcionário rejeitado" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Erro interno" });
+  }
+});
+
+// ---------- UPLOAD ----------
+app.post("/api/upload", upload.single("file"), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: "Nenhum arquivo enviado" });
+  res.json({ success: true, fileUrl: `/uploads/${req.file.filename}` });
+});
+
 app.use("/uploads", express.static("uploads"));
 
-// Middleware de erro
+// ---------- HEALTH & ROOT ----------
+app.get("/api/health", (req, res) => res.json({ status: "OK", timestamp: new Date().toISOString() }));
+app.get("/", (req, res) => res.json({ message: "OphuaConnect API", version: "1.0.0", status: "online" }));
+
+// ---------- ERROS ----------
 app.use((err, req, res, next) => {
   console.error("🔥 ERRO GLOBAL:", err.stack);
-
-  // Erro do multer (tamanho do arquivo)
-  if (err instanceof multer.MulterError) {
-    if (err.code === "LIMIT_FILE_SIZE") {
-      return res.status(400).json({
-        success: false,
-        error: "Arquivo muito grande. Tamanho máximo: 5MB",
-      });
-    }
+  if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
+    return res.status(400).json({ error: "Arquivo muito grande. Máximo: 5MB" });
   }
-
-  res.status(500).json({
-    success: false,
-    error: "Erro interno do servidor",
-  });
+  res.status(500).json({ error: "Erro interno do servidor" });
 });
 
-// 404 handler
-app.use("*", (req, res) => {
-  console.log("404:", req.method, req.originalUrl);
-  res.status(404).json({
-    success: false,
-    error: "Rota não encontrada",
-    path: req.originalUrl,
-  });
-});
+app.use("*", (req, res) => res.status(404).json({ error: "Rota não encontrada", path: req.originalUrl }));
 
+// ---------- START ----------
 const PORT = process.env.PORT || 5000;
-
 async function startServer() {
-  try {
-    await Database.initialize();
-
-    app.listen(PORT, () => {
-      console.log(`
-🎉🎉🎉 OPHUACONNECT BACKEND FUNCIONANDO! 🎉🎉🎉
-📍 Porta: ${PORT}
-🌐 URL: http://localhost:${PORT}
-🖥️  Frontend: http://localhost:5173
-
-👑 SUPER ADMIN:
-📧 admin@ophuaconnect.com
-🔑 Admin123!
-
-🔗 Endpoints ativos:
-   POST /api/auth/login
-   POST /api/auth/register/personal
-   POST /api/auth/register/company
-   POST /api/upload
-   GET  /api/health
-   GET  /
-
-📊 Banco: PostgreSQL 16 (conectado)
-⏰ ${new Date().toLocaleString()}
-      `);
-
-      console.log("\n🎯 TESTE RÁPIDO:");
-      console.log("curl -X POST http://localhost:5000/api/auth/login \\");
-      console.log('  -H "Content-Type: application/json" \\');
-      console.log(
-        '  -d \'{"email":"admin@ophuaconnect.com","password":"Admin123!"}\''
-      );
-    });
-  } catch (error) {
-    console.error("❌ Falha ao iniciar servidor:", error);
-    process.exit(1);
-  }
+  await Database.initialize();
+  app.listen(PORT, () => {
+    console.log(`🚀 OphuaConnect rodando em http://localhost:${PORT}`);
+  });
 }
-
 startServer();

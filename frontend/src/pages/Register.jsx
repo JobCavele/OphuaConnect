@@ -68,70 +68,60 @@ const Register = () => {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
+  e.preventDefault();
+  setError("");
+  setLoading(true);
 
-    const formData = new FormData(e.target);
-    const data = Object.fromEntries(formData);
+  const formData = new FormData(e.target);
+  const data = Object.fromEntries(formData);
 
-    try {
-      let result;
+  try {
+    let result;
 
-      if (accountType === "personal") {
-        // Criar objeto com dados pessoais INCLUINDO FOTO
-        const personalData = {
-          fullName: data.fullName,
-          email: data.email,
-          password: data.password,
-          phone: data.phone,
-          jobTitle: data.jobTitle,
-          bio: data.bio,
-          // Adicionar foto se existir
-          profileImage: profileImageFile,
-          // Redes sociais
-          ...socialLinks,
-        };
-
-        result = await registerPersonal(personalData);
-      } else if (accountType === "company") {
-        // Criar objeto com dados da empresa INCLUINDO LOGO
-        const companyData = {
-          companyName: data.companyName,
-          fullName: data.fullName,
-          email: data.email,
-          password: data.password,
-          phone: data.phone,
-          website: data.website,
-          description: data.description,
-          industry: data.industry,
-          size: data.size,
-          // Adicionar logo se existir
-          logo: logoFile,
-          // Redes sociais
-          ...socialLinks,
-        };
-
-        result = await registerCompany(companyData);
-      }
-
-      if (result?.success) {
-        // Redirecionar baseado no tipo de conta
-        if (accountType === "company") {
-          navigate("/company/dashboard");
-        } else {
-          navigate("/personal/dashboard");
-        }
-      } else {
-        setError(result?.error || "Erro ao registrar");
-      }
-    } catch (err) {
-      setError("Erro ao registrar. Tente novamente.");
-      console.error("Register error:", err);
-    } finally {
-      setLoading(false);
+    if (accountType === "personal") {
+      const personalData = {
+        fullName: data.fullName,
+        email: data.email,
+        password: data.password,
+        phone: data.phone,
+        jobTitle: data.jobTitle,
+        bio: data.bio,
+        ...socialLinks,
+      };
+      result = await registerPersonal(personalData);
+    } else if (accountType === "company") {
+      const companyData = {
+        companyName: data.companyName,
+        fullName: data.fullName,
+        email: data.email,
+        password: data.password,
+        phone: data.phone,
+        website: data.website,
+        description: data.description,
+        industry: data.industry,
+        size: data.size,
+        ...socialLinks,
+      };
+      result = await registerCompany(companyData); // ← CHAMADA CORRETA
     }
-  };
+
+    if (result?.success) {
+      // Salva token e user no localStorage
+      localStorage.setItem("token", result.token);
+      localStorage.setItem("user", JSON.stringify(result.user));
+
+      // Redireciona
+      navigate(accountType === "company" ? "/company/dashboard" : "/personal/dashboard");
+    } else {
+      setError(result?.error || "Erro ao registrar");
+    }
+  } catch (err) {
+    console.error("Register error:", err);
+    setError("Erro ao registrar. Tente novamente.");
+  } finally {
+    setLoading(false);
+  }
+};
 
   if (isEmployeeRegistration) {
     return (
@@ -152,11 +142,8 @@ const Register = () => {
               <h2>Registro de Funcionário</h2>
               <p>Complete suas informações para se juntar à empresa</p>
             </div>
-
-            <form
-              className="register-form"
-              onSubmit={(e) => e.preventDefault()}
-            >
+//mudei
+            <form className="register-form" onSubmit={handleSubmit}>
               <div className="form-fields">
                 <div className="form-group">
                   <label htmlFor="employeeFullName">Nome Completo *</label>

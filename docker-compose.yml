@@ -1,14 +1,17 @@
 services:
   postgres:
-    image: postgres:16-alpine
+    image: postgres:15-alpine
     container_name: ophuaconnect-db
+    restart: always
     environment:
       POSTGRES_USER: ophua
       POSTGRES_PASSWORD: ophua123
       POSTGRES_DB: ophuaconnect
+      POSTGRES_HOST_AUTH_METHOD: trust
     ports:
-      - "5439:5432"
+      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+
 volumes:
   postgres_data:

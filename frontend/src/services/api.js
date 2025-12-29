@@ -1,71 +1,65 @@
-﻿const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+﻿// src/services/api.js
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
-export const uploadFile = async (file) => {
-  try {
-    const formData = new FormData();
-    formData.append("file", file);
-
-    const response = await fetch(`${API_URL}/upload`, {
-      method: "POST",
-      body: formData,
-    });
-
-    if (!response.ok) {
-      throw new Error("Erro no upload");
-    }
-
-    const data = await response.json();
-    return data.fileUrl;
-  } catch (error) {
-    console.error("Upload Error:", error);
-    throw error;
-  }
-};
-
+// Função principal para requisições
 export const apiRequest = async (endpoint, options = {}) => {
-  try {
-    const token = localStorage.getItem("token");
-
-    const defaultHeaders = {
+  const url = `${API_BASE_URL}${endpoint}`;
+  
+  const config = {
+    method: options.method || "GET",
+    headers: {
       "Content-Type": "application/json",
-    };
+      ...options.headers,
+    },
+    body: options.body ? JSON.stringify(options.body) : undefined,
+  };
 
-    if (token) {
-      defaultHeaders["Authorization"] = `Bearer ${token}`;
-    }
-
-    let body = options.body;
-    let headers = { ...defaultHeaders };
-
-    if (body instanceof FormData) {
-      delete headers["Content-Type"];
-    }
-
-    const response = await fetch(`${API_URL}${endpoint}`, {
-      ...options,
-      headers: {
-        ...headers,
-        ...options.headers,
-      },
-      body: body instanceof FormData ? body : JSON.stringify(body),
-    });
-
-    const data = await response.json();
-
+  try {
+    const response = await fetch(url, config);
+    
     if (!response.ok) {
-      throw new Error(data.error || "Erro na requisição");
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `HTTP error ${response.status}`);
     }
-
-    return data;
+    
+    return await response.json();
   } catch (error) {
-    console.error(`API Request Error (${endpoint}):`, error);
+    console.error("API Error:", error.message);
     throw error;
   }
 };
 
-const api = {
-  uploadFile,
-  apiRequest,
+// Função para upload de arquivos (se precisar)
+export const uploadFile = async (endpoint, file, options = {}) => {
+  const url = `${API_BASE_URL}${endpoint}`;
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const config = {
+    method: "POST",
+    body: formData,
+    headers: {
+      ...options.headers,
+    },
+  };
+
+  try {
+    const response = await fetch(url, config);
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `HTTP error ${response.status}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error("Upload Error:", error.message);
+    throw error;
+  }
 };
 
-export default api;
+// Exportação única se quiser usar assim:
+export default {
+  apiRequest,
+  uploadFile
+};

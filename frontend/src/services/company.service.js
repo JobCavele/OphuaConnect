@@ -1,55 +1,50 @@
-import { apiRequest, uploadFile } from "./api.js";
+// src/services/company.service.js
+import { apiRequest, uploadFile } from "./api.js"; // Agora uploadFile existe
 
 export const companyService = {
-  async getCompanies() {
-    return apiRequest("/companies");
+  // Métodos normais usando apiRequest
+  async getCompanyProfile() {
+    return apiRequest("/company/profile");
   },
 
-  async getCompany(id) {
-    return apiRequest(`/companies/${id}`);
-  },
-
-  async getCompanyBySlug(slug) {
-    return apiRequest(`/companies/slug/${slug}`);
-  },
-
-  async updateCompany(id, data) {
-    return apiRequest(`/companies/${id}`, {
+  async updateCompanyProfile(profileData) {
+    return apiRequest("/company/profile", {
       method: "PUT",
-      body: data,
+      body: profileData,
     });
   },
 
   async uploadLogo(file) {
-    return uploadFile(file);
+    return uploadFile("/company/upload-logo", file);
   },
 
-  async getEmployees(companyId) {
-    return apiRequest(`/companies/${companyId}/employees`);
+  async getEmployees() {
+    return apiRequest("/company/employees");
   },
 
-  async addEmployee(companyId, employeeData) {
-    return apiRequest(`/companies/${companyId}/employees`, {
+  async inviteEmployee(email) {
+    return apiRequest("/company/employees/invite", {
       method: "POST",
-      body: employeeData,
+      body: { email },
     });
   },
 
-  async removeEmployee(companyId, employeeId) {
-    return apiRequest(`/companies/${companyId}/employees/${employeeId}`, {
-      method: "DELETE",
+  async getAnalytics() {
+    return apiRequest("/company/analytics");
+  },
+
+  async updateTheme(themeData) {
+    return apiRequest("/company/theme", {
+      method: "PUT",
+      body: themeData,
     });
   },
 
-  async getRegistrationLink(companyId) {
-    return apiRequest(`/companies/${companyId}/registration-link`);
+  async getRegistrationLink() {
+    return apiRequest("/company/registration-link");
   },
 
-  async generateRegistrationLink(companyId) {
-    return apiRequest(`/companies/${companyId}/registration-link/generate`, {
-      method: "POST",
-    });
+  async generateQRCode() {
+    return apiRequest("/company/qr-code");
   },
 };
-
-export default companyService;
