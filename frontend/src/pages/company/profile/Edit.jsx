@@ -1,64 +1,102 @@
-// src/pages/company/profile/Edit.jsx
-import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+// src/pages/company/Profile/Edit.jsx - VERSÃO CORRIGIDA
+import React, { useEffect, useState, useContext } from "react";
 import { useAuth } from "../../../hooks/useAuth";
-import { useTheme } from "../../../hooks/useTheme";
-import AvatarUpload from "../../../components/profile/AvatarUpload";
-import SocialLinks from "../../../components/profile/SocialLinks";
-import { companyService } from "/src/services/company.service.js";
-import "../../../styles/company/ProfileEdit.css";
+import { companyService } from "../../../services/company.service";
+import { ThemeContext } from "../../../context/ThemeContext";
+import "../../../styles/pages/CompanyEdit.css";
 
 const CompanyProfileEdit = () => {
-  const { user, company, updateCompany } = useAuth();
-  const { generateThemeFromLogo } = useTheme();
-  const navigate = useNavigate();
+  const { user } = useAuth();
+  const themeContext = useContext(ThemeContext);
+
+  // Extrai valores do contexto com fallback
+  const theme = themeContext?.theme || {
+    primary: "#2563eb",
+    secondary: "#10b981",
+  };
+  const setCompanyThemeColors =
+    themeContext?.setCompanyThemeColors || (() => {});
 
   const [formData, setFormData] = useState({
     name: "",
     description: "",
     website: "",
-    email: "",
-    phone: "",
-    address: "",
     industry: "",
     size: "",
-    founded: "",
+    logoUrl: "",
+    socialLinks: {
+      facebook: "",
+      instagram: "",
+      linkedin: "",
+      twitter: "",
+      github: "",
+    },
   });
 
-  const [socials, setSocials] = useState({
-    facebook: "",
-    instagram: "",
-    linkedin: "",
-    twitter: "",
-    youtube: "",
-    github: "",
-  });
-
-  const [logoFile, setLogoFile] = useState(null);
-  const [logoPreview, setLogoPreview] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
+  // Debug: verifique se o contexto está disponível
+  console.log("🎨 ThemeContext disponível:", !!themeContext);
+  console.log("🎨 Tema atual:", theme);
+
+  // Carregar dados da empresa
   useEffect(() => {
-    if (company) {
-      setFormData({
-        name: company.name || "",
-        description: company.description || "",
-        website: company.website || "",
-        email: company.email || "",
-        phone: company.phone || "",
-        address: company.address || "",
-        industry: company.industry || "",
-        size: company.size || "",
-        founded: company.founded || "",
-      });
+    loadCompanyProfile();
+  }, []);
+  const loadCompanyProfile = async () => {
+    try {
+      setLoading(true);
+      const response = await companyService.getCompanyProfile();
 
-      setSocials(company.socials || {});
-      setLogoPreview(company.logo);
+      if (response) {
+        // CORREÇÃO: Garantir que logoUrl seja string
+        let logoUrl = response.logoUrl || "";
+        if (Array.isArray(logoUrl)) {
+          logoUrl = logoUrl[0] || "";
+        }
+
+        setFormData({
+          name: response.name || "",
+          description: response.description || "",
+          website: response.website || "",
+          industry: response.industry || "",
+          size: response.size || "",
+          logoUrl: logoUrl, // ← Agora é garantidamente string
+          socialLinks: response.socialLinks || {
+            facebook: "",
+            instagram: "",
+            linkedin: "",
+            twitter: "",
+            github: "",
+          },
+        });
+
+        // Se houver tema no backend, aplica
+        if (response.themeSettings) {
+          const themeColors = {
+            primary: response.themeSettings.primaryColor || "#2563eb",
+            secondary: response.themeSettings.secondaryColor || "#10b981",
+          };
+
+          if (setCompanyThemeColors) {
+            setCompanyThemeColors(themeColors);
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Erro ao carregar perfil:", err);
+      setError("Não foi possível carregar os dados da empresa.");
+    } finally {
+      setLoading(false);
     }
-  }, [company]);
+  };
 
-  const handleInputChange = (e) => {
+  // Handle form changes
+  const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
@@ -66,265 +104,250 @@ const CompanyProfileEdit = () => {
     }));
   };
 
-  const handleLogoChange = (file, preview) => {
-    setLogoFile(file);
-    setLogoPreview(preview);
+  const handleSocialChange = (platform, value) => {
+    setFormData((prev) => ({
+      ...prev,
+      socialLinks: {
+        ...prev.socialLinks,
+        [platform]: value,
+      },
+    }));
   };
 
-  const handleSocialsChange = (updatedSocials) => {
-    setSocials(updatedSocials);
-  };
+  // Handle logo upload
+  const handleLogoUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setSelectedFile(file);
 
-  const extractThemeFromLogo = async () => {
-    if (logoPreview) {
-      const colors = await generateThemeFromLogo(logoPreview);
-      alert(
-        `Tema extraído do logo: Primária ${colors.primary}, Secundária ${colors.secondary}`
-      );
+      // Preview
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setFormData((prev) => ({
+          ...prev,
+          logoUrl: event.target.result,
+        }));
+      };
+      reader.readAsDataURL(file);
     }
   };
 
-  const handleSubmit = async (e) => {
+  // Handle theme color change
+  const handleThemeColorChange = (type, color) => {
+    if (setCompanyThemeColors) {
+      const newColors =
+        type === "primary" ? { primary: color } : { secondary: color };
+      setCompanyThemeColors(newColors);
+    }
+  };
+
+  // Save profile
+  const handleSave = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    setError("");
-
     try {
-      const updateData = {
-        ...formData,
-        socials,
-      };
+      setSaving(true);
+      setError("");
+      setSuccess("");
 
-      if (logoFile) {
-        updateData.logo = logoFile;
-      }
-
-      const response = await companyService.updateCompany(
-        company.id,
-        updateData
+      const result = await companyService.updateCompanyProfile(
+        formData,
+        selectedFile
       );
 
-      if (response.success) {
-        updateCompany(response.company);
-        alert("Perfil atualizado com sucesso!");
-        navigate("/company/profile/view");
-      } else {
-        setError(response.message);
+      if (result.success) {
+        setSuccess("Perfil atualizado com sucesso!");
+
+        // Se houver tema personalizado, salva também
+        if (theme.primary || theme.secondary) {
+          await companyService.updateTheme({
+            primaryColor: theme.primary,
+            secondaryColor: theme.secondary,
+          });
+        }
+
+        // Recarrega após 2 segundos
+        setTimeout(() => {
+          loadCompanyProfile();
+          setSuccess("");
+        }, 2000);
       }
     } catch (err) {
-      setError("Erro ao atualizar perfil. Tente novamente.");
-      console.error(err);
+      console.error("Erro ao salvar:", err);
+      setError(err.message || "Erro ao salvar alterações");
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
-  return (
-    <div className="company-profile-edit">
-      <div className="edit-header">
-        <h1>Editar Perfil da Empresa</h1>
-        <p>Atualize as informações da sua empresa</p>
+  if (loading) {
+    return (
+      <div className="company-edit">
+        <div className="loading">Carregando...</div>
       </div>
+    );
+  }
 
-      <form onSubmit={handleSubmit} className="edit-form">
-        {error && (
-          <div className="error-message">
-            <p>{error}</p>
-          </div>
-        )}
+  return (
+    <div className="company-edit">
+      <h1>Editar Perfil da Empresa</h1>
 
-        <div className="form-grid">
-          {/* Seção Logo */}
-          <div className="form-section logo-section">
-            <h3>Logotipo da Empresa</h3>
-            <AvatarUpload
-              currentImage={logoPreview}
-              onImageChange={handleLogoChange}
-              type="company"
-              size="large"
+      {error && <div className="error">{error}</div>}
+      {success && <div className="success">{success}</div>}
+
+      <form onSubmit={handleSave}>
+        {/* Dados básicos */}
+        <div className="form-section">
+          <h2>Informações Básicas</h2>
+
+          <div className="form-group">
+            <label>Nome da Empresa *</label>
+            <input
+              type="text"
+              name="name"
+              value={formData.name}
+              onChange={handleChange}
+              required
             />
-
-            {logoPreview && (
-              <button
-                type="button"
-                onClick={extractThemeFromLogo}
-                className="btn btn-outline"
-              >
-                🎨 Extrair tema do logo
-              </button>
-            )}
           </div>
 
-          {/* Informações Básicas */}
-          <div className="form-section basic-info">
-            <h3>Informações Básicas</h3>
-
-            <div className="form-group">
-              <label htmlFor="name">Nome da Empresa *</label>
-              <input
-                type="text"
-                id="name"
-                name="name"
-                value={formData.name}
-                onChange={handleInputChange}
-                required
-                placeholder="Digite o nome da sua empresa"
-              />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="industry">Setor/Indústria</label>
-              <select
-                id="industry"
-                name="industry"
-                value={formData.industry}
-                onChange={handleInputChange}
-              >
-                <option value="">Selecione um setor</option>
-                <option value="technology">Tecnologia</option>
-                <option value="finance">Finanças</option>
-                <option value="healthcare">Saúde</option>
-                <option value="education">Educação</option>
-                <option value="retail">Varejo</option>
-                <option value="manufacturing">Manufatura</option>
-                <option value="consulting">Consultoria</option>
-                <option value="other">Outro</option>
-              </select>
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="size">Tamanho da Empresa</label>
-              <select
-                id="size"
-                name="size"
-                value={formData.size}
-                onChange={handleInputChange}
-              >
-                <option value="">Selecione o tamanho</option>
-                <option value="1-10">1-10 funcionários</option>
-                <option value="11-50">11-50 funcionários</option>
-                <option value="51-200">51-200 funcionários</option>
-                <option value="201-500">201-500 funcionários</option>
-                <option value="501+">501+ funcionários</option>
-              </select>
-            </div>
-
-            <div className="form-row">
-              <div className="form-group">
-                <label htmlFor="founded">Ano de Fundação</label>
-                <input
-                  type="number"
-                  id="founded"
-                  name="founded"
-                  value={formData.founded}
-                  onChange={handleInputChange}
-                  min="1900"
-                  max={new Date().getFullYear()}
-                  placeholder="Ex: 2020"
-                />
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="website">Website</label>
-                <input
-                  type="url"
-                  id="website"
-                  name="website"
-                  value={formData.website}
-                  onChange={handleInputChange}
-                  placeholder="https://suaempresa.com"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Descrição */}
-          <div className="form-section full-width">
-            <h3>Descrição da Empresa</h3>
-            <div className="form-group">
-              <label htmlFor="description">Sobre a Empresa *</label>
-              <textarea
-                id="description"
-                name="description"
-                value={formData.description}
-                onChange={handleInputChange}
-                required
-                rows="5"
-                placeholder="Descreva sua empresa, missão, visão e valores..."
-                maxLength="1000"
-              />
-              <div className="char-counter">
-                {formData.description.length}/1000 caracteres
-              </div>
-            </div>
-          </div>
-
-          {/* Contato */}
-          <div className="form-section contact-info">
-            <h3>Informações de Contato</h3>
-
-            <div className="form-row">
-              <div className="form-group">
-                <label htmlFor="email">Email Corporativo</label>
-                <input
-                  type="email"
-                  id="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  placeholder="contato@empresa.com"
-                />
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="phone">Telefone</label>
-                <input
-                  type="tel"
-                  id="phone"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleInputChange}
-                  placeholder="(11) 99999-9999"
-                />
-              </div>
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="address">Endereço</label>
-              <input
-                type="text"
-                id="address"
-                name="address"
-                value={formData.address}
-                onChange={handleInputChange}
-                placeholder="Rua, Número, Cidade, Estado"
-              />
-            </div>
-          </div>
-
-          {/* Redes Sociais */}
-          <div className="form-section full-width">
-            <h3>Redes Sociais</h3>
-            <SocialLinks
-              socials={socials}
-              onChange={handleSocialsChange}
-              companyMode={true}
+          <div className="form-group">
+            <label>Descrição</label>
+            <textarea
+              name="description"
+              value={formData.description}
+              onChange={handleChange}
+              rows="4"
             />
+          </div>
+
+          <div className="form-group">
+            <label>Website</label>
+            <input
+              type="url"
+              name="website"
+              value={formData.website}
+              onChange={handleChange}
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Setor</label>
+            <input
+              type="text"
+              name="industry"
+              value={formData.industry}
+              onChange={handleChange}
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Tamanho</label>
+            <select name="size" value={formData.size} onChange={handleChange}>
+              <option value="">Selecione</option>
+              <option value="1-10">1-10 funcionários</option>
+              <option value="11-50">11-50 funcionários</option>
+              <option value="51-200">51-200 funcionários</option>
+              <option value="201-500">201-500 funcionários</option>
+              <option value="500+">500+ funcionários</option>
+            </select>
           </div>
         </div>
 
+        {/* Logo */}
+        <div className="form-section">
+          <h2>Logo</h2>
+          <div className="form-group">
+            <label>Logo da Empresa</label>
+            <input type="file" accept="image/*" onChange={handleLogoUpload} />
+            {formData.logoUrl && (
+              <div className="logo-preview">
+                <img src={formData.logoUrl} alt="Logo preview" />
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Tema */}
+        <div className="form-section">
+          <h2>Cores do Tema</h2>
+          <div className="theme-colors">
+            <div className="color-picker">
+              <label>Cor Primária</label>
+              <div className="color-input">
+                <input
+                  type="color"
+                  value={theme.primary || "#2563eb"}
+                  onChange={(e) =>
+                    handleThemeColorChange("primary", e.target.value)
+                  }
+                />
+                <input
+                  type="text"
+                  value={theme.primary || "#2563eb"}
+                  onChange={(e) =>
+                    handleThemeColorChange("primary", e.target.value)
+                  }
+                />
+              </div>
+            </div>
+
+            <div className="color-picker">
+              <label>Cor Secundária</label>
+              <div className="color-input">
+                <input
+                  type="color"
+                  value={theme.secondary || "#10b981"}
+                  onChange={(e) =>
+                    handleThemeColorChange("secondary", e.target.value)
+                  }
+                />
+                <input
+                  type="text"
+                  value={theme.secondary || "#10b981"}
+                  onChange={(e) =>
+                    handleThemeColorChange("secondary", e.target.value)
+                  }
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Redes Sociais */}
+        <div className="form-section">
+          <h2>Redes Sociais</h2>
+          {Object.entries(formData.socialLinks).map(([platform, value]) => (
+            <div className="form-group" key={platform}>
+              <label>
+                {platform.charAt(0).toUpperCase() + platform.slice(1)}
+              </label>
+              <input
+                type="url"
+                value={value}
+                onChange={(e) => handleSocialChange(platform, e.target.value)}
+                placeholder={`https://${platform}.com/...`}
+              />
+            </div>
+          ))}
+        </div>
+
+        {/* Botões */}
         <div className="form-actions">
           <button
-            type="button"
-            onClick={() => navigate("/company/profile/view")}
-            className="btn btn-outline"
-            disabled={loading}
+            type="submit"
+            className="btn-primary"
+            disabled={saving}
+            style={{ backgroundColor: theme.primary }}
           >
-            Cancelar
+            {saving ? "Salvando..." : "Salvar Alterações"}
           </button>
 
-          <button type="submit" className="btn btn-primary" disabled={loading}>
-            {loading ? "Salvando..." : "Salvar Alterações"}
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={loadCompanyProfile}
+          >
+            Recarregar
           </button>
         </div>
       </form>

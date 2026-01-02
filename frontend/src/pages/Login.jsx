@@ -14,41 +14,49 @@ const Login = () => {
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
-  e.preventDefault();
-  setError("");
-  setLoading(true);
+    e.preventDefault();
+    setError("");
+    setLoading(true);
 
-  try {
-    // CORRIJA ESTA LINHA - passe um objeto em vez de dois parâmetros
-    const result = await login({ email, password }); // ← AQUI ESTÁ O ERRO
+    try {
+      const result = await login({ email, password });
 
-    if (result.success) {
-      const user = result.user;
+      if (result.success) {
+        const user = result.user;
 
-      switch (user.role) {
-        case "SUPER_ADMIN":
-          navigate("/admin");
-          break;
-        case "COMPANY_ADMIN":
-          navigate("/company");
-          break;
-        case "EMPLOYEE":
-        case "PERSONAL":
-          navigate("/personal");
-          break;
-        default:
-          navigate("/dashboard");
+        switch (user.role) {
+          case "SUPER_ADMIN":
+            navigate("/admin");
+            break;
+          case "COMPANY_ADMIN":
+            // Se tem empresa, vai para dashboard específico
+            if (user.company?.slug) {
+              navigate(`/company/dashboard/${user.company.slug}`);
+            } else {
+              navigate("/company/dashboard"); // fallback
+            }
+            break;
+          case "EMPLOYEE":
+            // Funcionário vai para seu dashboard específico
+            navigate("/employee/dashboard");
+            break;
+          case "PERSONAL":
+            // Conta pessoal vai para seu dashboard
+            navigate("/personal/dashboard");
+            break;
+          default:
+            navigate("/dashboard");
+        }
+      } else {
+        setError(result.error || "Credenciais inválidas");
       }
-    } else {
-      setError(result.error);
+    } catch (err) {
+      setError("Erro ao fazer login. Tente novamente.");
+      console.error("Login error:", err);
+    } finally {
+      setLoading(false);
     }
-  } catch (err) {
-    setError("Erro ao fazer login. Tente novamente.");
-    console.error("Login error:", err);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   return (
     <div className="login-page">

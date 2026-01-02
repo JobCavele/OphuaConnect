@@ -6,4 +6,16 @@ export default defineConfig({
   css: {
     postcss: "./", // Isso força o Vite a procurar configuração PostCSS na raiz
   },
+  server: {
+    proxy: {
+      "/api": {
+        target: "http://localhost:5000",
+        changeOrigin: true,
+      },
+      "/uploads": {
+        target: "http://localhost:5000",
+        changeOrigin: true,
+      },
+    },
+  },
 });

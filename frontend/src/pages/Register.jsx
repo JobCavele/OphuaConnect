@@ -1,5 +1,5 @@
-﻿// src/pages/Register.jsx
-import { useState } from "react";
+﻿// src/pages/Register.jsx - VERSÃO COMPLETA E CORRIGIDA
+import { useState, useEffect } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import "../styles/pages/Register.css";
@@ -20,10 +20,49 @@ const Register = () => {
     github: "",
   });
 
+  // Novo estado para tema da empresa
+  const [companyTheme, setCompanyTheme] = useState(null);
+  const [companyInfo, setCompanyInfo] = useState(null);
+
   const { registerPersonal, registerCompany } = useAuth();
   const navigate = useNavigate();
 
   const isEmployeeRegistration = !!companySlug;
+
+  // Buscar informações da empresa quando for registro de funcionário
+  useEffect(() => {
+    if (companySlug) {
+      fetchCompanyTheme();
+    }
+  }, [companySlug]);
+
+  const fetchCompanyTheme = async () => {
+    try {
+      const response = await fetch(
+        `http://localhost:5000/api/company/theme/${companySlug}`
+      );
+      const data = await response.json();
+
+      if (data.success) {
+        setCompanyTheme(data.theme);
+        setCompanyInfo(data.company);
+
+        // Aplicar tema dinamicamente no CSS
+        if (data.theme) {
+          document.documentElement.style.setProperty(
+            "--primary-color",
+            data.theme.primaryColor || "#667eea"
+          );
+          document.documentElement.style.setProperty(
+            "--secondary-color",
+            data.theme.secondaryColor || "#764ba2"
+          );
+        }
+      }
+    } catch (err) {
+      console.error("Erro ao buscar tema da empresa:", err);
+    }
+  };
 
   const handleSelectType = (type) => {
     setAccountType(type);
@@ -67,71 +106,226 @@ const Register = () => {
     }));
   };
 
+  // Handler para registro de funcionário
+  const handleEmployeeSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    console.log("📝 Iniciando registro de funcionário...");
+
+    const formData = new FormData(e.target);
+
+    // Adiciona redes sociais ao FormData
+    Object.entries(socialLinks).forEach(([key, value]) => {
+      if (value) formData.append(key, value);
+    });
+
+    console.log("📋 Dados do formulário:");
+    for (let [key, value] of formData.entries()) {
+      console.log(`${key}:`, value);
+    }
+
+    try {
+      const response = await fetch(
+        `http://localhost:5000/api/auth/register/employee/${companySlug}`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Salva token e user no localStorage
+        localStorage.setItem("token", result.token);
+        localStorage.setItem("user", JSON.stringify(result.user));
+
+        alert(
+          "🎉 Cadastro realizado com sucesso! Aguarde aprovação do administrador."
+        );
+        navigate("/login");
+      } else {
+        setError(result.error || "Erro ao registrar");
+      }
+    } catch (err) {
+      console.error("Register error:", err);
+      setError("Erro ao registrar. Tente novamente.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handler para registro PERSONAL
+  const handlePersonalSubmit = async (personalData) => {
+    try {
+      const response = await fetch(
+        "http://localhost:5000/api/auth/register/personal",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(personalData),
+        }
+      );
+
+      const result = await response.json();
+
+      if (result.success) {
+        console.log("✅ Registro pessoal bem-sucedido:", result);
+        localStorage.setItem("token", result.token);
+        localStorage.setItem("user", JSON.stringify(result.user));
+        return { success: true, data: result };
+      } else {
+        return { success: false, error: result.error };
+      }
+    } catch (err) {
+      console.error("Erro registro pessoal:", err);
+      return { success: false, error: "Erro ao registrar" };
+    }
+  };
+
+  // Handler principal para registro
   const handleSubmit = async (e) => {
-  e.preventDefault();
-  setError("");
-  setLoading(true);
+    e.preventDefault();
+    setError("");
+    setLoading(true);
 
-  const formData = new FormData(e.target);
-  const data = Object.fromEntries(formData);
+    console.log("🟢 ===== INICIANDO REGISTRO =====");
 
-  try {
-    let result;
+    try {
+      let result;
 
-    if (accountType === "personal") {
-      const personalData = {
-        fullName: data.fullName,
-        email: data.email,
-        password: data.password,
-        phone: data.phone,
-        jobTitle: data.jobTitle,
-        bio: data.bio,
-        ...socialLinks,
-      };
-      result = await registerPersonal(personalData);
-    } else if (accountType === "company") {
-      const companyData = {
-        companyName: data.companyName,
-        fullName: data.fullName,
-        email: data.email,
-        password: data.password,
-        phone: data.phone,
-        website: data.website,
-        description: data.description,
-        industry: data.industry,
-        size: data.size,
-        ...socialLinks,
-      };
-      result = await registerCompany(companyData); // ← CHAMADA CORRETA
+      if (accountType === "personal") {
+        // Registro pessoal
+        const formData = new FormData(e.target);
+        const data = Object.fromEntries(formData.entries());
+
+        const personalData = {
+          fullName: data.fullName,
+          email: data.email,
+          password: data.password,
+          phone: data.phone || "",
+          jobTitle: data.jobTitle || "",
+          bio: data.bio || "",
+          ...socialLinks,
+        };
+
+        console.log("👤 Dados pessoais:", personalData);
+        result = await handlePersonalSubmit(personalData);
+      } else if (accountType === "company") {
+        // Registro empresa
+        const formData = new FormData(e.target);
+
+        // Adiciona redes sociais ao FormData
+        Object.entries(socialLinks).forEach(([key, value]) => {
+          if (value) formData.append(key, value);
+        });
+
+        // Se tem logo, adiciona ao FormData
+        if (logoFile) {
+          formData.append("logo", logoFile);
+        }
+
+        console.log("🏢 Enviando registro empresa...");
+
+        const response = await fetch(
+          "http://localhost:5000/api/auth/register/company",
+          {
+            method: "POST",
+            body: formData,
+          }
+        );
+
+        result = await response.json();
+
+        if (result.success) {
+          console.log("🟢 ===== REGISTRO EMPRESA BEM-SUCEDIDO =====");
+          console.log("🟢 Tema criado:", result.user?.company?.themeSettings);
+
+          // ✅ CRÍTICO: SALVA TEMA NO LOCALSTORAGE IMEDIATAMENTE
+          if (result.user?.company?.themeSettings) {
+            const theme = result.user.company.themeSettings;
+            const companyTheme = {
+              primary: theme.primaryColor || "#3B82F6",
+              secondary: theme.secondaryColor || "#1E40AF",
+            };
+
+            // Salva no localStorage
+            localStorage.setItem("companyTheme", JSON.stringify(companyTheme));
+            console.log("🎨 Tema salvo no localStorage:", companyTheme);
+
+            // Aplica CSS GLOBALMENTE
+            document.documentElement.style.setProperty(
+              "--primary-color",
+              companyTheme.primary
+            );
+            document.documentElement.style.setProperty(
+              "--secondary-color",
+              companyTheme.secondary
+            );
+            console.log("🎨 CSS aplicado");
+
+            // Verifica se aplicou
+            const appliedPrimary = getComputedStyle(document.documentElement)
+              .getPropertyValue("--primary-color")
+              .trim();
+            console.log("🎨 CSS verificado --primary-color:", appliedPrimary);
+          }
+
+          // Salva user
+          localStorage.setItem("user", JSON.stringify(result.user));
+          localStorage.setItem("token", result.token);
+          console.log("🔐 Token e user salvos");
+        }
+      }
+
+      if (result?.success) {
+        console.log("✅ Registro completo, redirecionando...");
+
+        // Redireciona para dashboard IMEDIATAMENTE
+        setTimeout(() => {
+          navigate(
+            accountType === "company"
+              ? "/company/dashboard"
+              : "/personal/dashboard"
+          );
+        }, 100);
+      } else {
+        setError(result?.error || "Erro ao registrar");
+      }
+    } catch (err) {
+      console.error("Register error:", err);
+      setError("Erro ao registrar. Tente novamente.");
+    } finally {
+      setLoading(false);
     }
-
-    if (result?.success) {
-      // Salva token e user no localStorage
-      localStorage.setItem("token", result.token);
-      localStorage.setItem("user", JSON.stringify(result.user));
-
-      // Redireciona
-      navigate(accountType === "company" ? "/company/dashboard" : "/personal/dashboard");
-    } else {
-      setError(result?.error || "Erro ao registrar");
-    }
-  } catch (err) {
-    console.error("Register error:", err);
-    setError("Erro ao registrar. Tente novamente.");
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   if (isEmployeeRegistration) {
     return (
       <div className="register-page employee-page">
         <div className="register-container">
           <div className="register-header">
+            {companyInfo?.logoUrl && (
+              <div className="company-logo-container">
+                <img
+                  src={
+                    companyInfo.logoUrl.startsWith("http")
+                      ? companyInfo.logoUrl
+                      : `http://localhost:5000${companyInfo.logoUrl}`
+                  }
+                  alt={companyInfo.name}
+                  className="company-logo"
+                />
+              </div>
+            )}
             <div className="logo-circle employee-logo">
               <span className="logo-text">👥</span>
             </div>
-            <h1>Junte-se à Empresa</h1>
+            <h1>Junte-se à {companyInfo?.name || "Empresa"}</h1>
             <p className="subtitle">
               Você foi convidado para se registrar como funcionário
             </p>
@@ -142,14 +336,14 @@ const Register = () => {
               <h2>Registro de Funcionário</h2>
               <p>Complete suas informações para se juntar à empresa</p>
             </div>
-//mudei
-            <form className="register-form" onSubmit={handleSubmit}>
+
+            <form className="register-form" onSubmit={handleEmployeeSubmit}>
               <div className="form-fields">
                 <div className="form-group">
-                  <label htmlFor="employeeFullName">Nome Completo *</label>
+                  <label htmlFor="fullName">Nome Completo *</label>
                   <input
-                    id="employeeFullName"
-                    name="employeeFullName"
+                    id="fullName"
+                    name="fullName"
                     type="text"
                     required
                     placeholder="Seu nome completo"
@@ -157,10 +351,10 @@ const Register = () => {
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="employeeEmail">Email *</label>
+                  <label htmlFor="email">Email *</label>
                   <input
-                    id="employeeEmail"
-                    name="employeeEmail"
+                    id="email"
+                    name="email"
                     type="email"
                     required
                     placeholder="seu@email.com"
@@ -168,10 +362,22 @@ const Register = () => {
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="employeeJobTitle">Cargo *</label>
+                  <label htmlFor="password">Senha *</label>
                   <input
-                    id="employeeJobTitle"
-                    name="employeeJobTitle"
+                    id="password"
+                    name="password"
+                    type="password"
+                    required
+                    minLength="6"
+                    placeholder="Mínimo 6 caracteres"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="position">Cargo *</label>
+                  <input
+                    id="position"
+                    name="position"
                     type="text"
                     required
                     placeholder="Seu cargo na empresa"
@@ -179,40 +385,37 @@ const Register = () => {
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="employeePhone">Telefone</label>
+                  <label htmlFor="phone">Telefone</label>
                   <input
-                    id="employeePhone"
-                    name="employeePhone"
+                    id="phone"
+                    name="phone"
                     type="tel"
                     placeholder="(11) 99999-9999"
                   />
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="employeeBio">Biografia</label>
+                  <label htmlFor="bio">Biografia</label>
                   <textarea
-                    id="employeeBio"
-                    name="employeeBio"
+                    id="bio"
+                    name="bio"
                     rows="3"
                     placeholder="Conte um pouco sobre você..."
                   />
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="employeeProfileImage">Foto de Perfil</label>
+                  <label htmlFor="avatar">Foto de Perfil</label>
                   <div className="file-upload-wrapper">
                     <input
                       type="file"
-                      id="employeeProfileImage"
-                      name="employeeProfileImage"
+                      id="avatar"
+                      name="avatar"
                       accept="image/*"
                       onChange={handleProfileImageUpload}
                       className="file-input"
                     />
-                    <label
-                      htmlFor="employeeProfileImage"
-                      className="file-label"
-                    >
+                    <label htmlFor="avatar" className="file-label">
                       <span className="upload-icon">📷</span>
                       <span className="upload-text">
                         {profileImageFile
@@ -220,15 +423,6 @@ const Register = () => {
                           : "Escolher imagem"}
                       </span>
                     </label>
-                    {profileImageFile && (
-                      <div className="file-preview">
-                        <img
-                          src={URL.createObjectURL(profileImageFile)}
-                          alt="Preview"
-                          className="preview-image"
-                        />
-                      </div>
-                    )}
                   </div>
                 </div>
 
@@ -236,9 +430,10 @@ const Register = () => {
                   <h3>Redes Sociais</h3>
                   <div className="social-links-grid">
                     <div className="social-input">
-                      <label htmlFor="employeeLinkedin">LinkedIn</label>
+                      <label htmlFor="linkedin">LinkedIn</label>
                       <input
-                        id="employeeLinkedin"
+                        id="linkedin"
+                        name="linkedin"
                         type="url"
                         placeholder="https://linkedin.com/in/seu-perfil"
                         value={socialLinks.linkedin}
@@ -248,9 +443,10 @@ const Register = () => {
                       />
                     </div>
                     <div className="social-input">
-                      <label htmlFor="employeeInstagram">Instagram</label>
+                      <label htmlFor="instagram">Instagram</label>
                       <input
-                        id="employeeInstagram"
+                        id="instagram"
+                        name="instagram"
                         type="url"
                         placeholder="https://instagram.com/seu-perfil"
                         value={socialLinks.instagram}
@@ -264,13 +460,8 @@ const Register = () => {
               </div>
 
               <div className="terms-agreement">
-                <input
-                  type="checkbox"
-                  id="employeeTerms"
-                  name="employeeTerms"
-                  required
-                />
-                <label htmlFor="employeeTerms">
+                <input type="checkbox" id="terms" name="terms" required />
+                <label htmlFor="terms">
                   Concordo com os{" "}
                   <a href="#" className="terms-link">
                     Termos de Serviço
@@ -438,7 +629,7 @@ const Register = () => {
                       <input
                         type="file"
                         id="companyLogo"
-                        name="companyLogo"
+                        name="logo"
                         accept="image/*"
                         onChange={handleLogoUpload}
                         className="file-input"
@@ -449,19 +640,7 @@ const Register = () => {
                           {logoFile ? logoFile.name : "Escolher logotipo"}
                         </span>
                       </label>
-                      {logoFile && (
-                        <div className="file-preview">
-                          <img
-                            src={URL.createObjectURL(logoFile)}
-                            alt="Logo preview"
-                            className="preview-image"
-                          />
-                        </div>
-                      )}
                     </div>
-                    <p className="file-hint">
-                      Recomendado: 500x500px, PNG ou JPG, até 5MB
-                    </p>
                   </div>
 
                   <div className="form-group">
@@ -519,19 +698,7 @@ const Register = () => {
                           : "Escolher foto"}
                       </span>
                     </label>
-                    {profileImageFile && (
-                      <div className="file-preview">
-                        <img
-                          src={URL.createObjectURL(profileImageFile)}
-                          alt="Preview"
-                          className="preview-image"
-                        />
-                      </div>
-                    )}
                   </div>
-                  <p className="file-hint">
-                    Recomendado: 400x400px, PNG ou JPG, até 5MB
-                  </p>
                 </div>
               )}
 
@@ -575,10 +742,6 @@ const Register = () => {
                   minLength="6"
                   placeholder="Mínimo 6 caracteres"
                 />
-                <p className="password-hint">
-                  Use letras, números e caracteres especiais para maior
-                  segurança
-                </p>
               </div>
 
               <div className="form-group">
@@ -730,31 +893,13 @@ const Register = () => {
               className={`submit-button ${accountType}-button`}
               disabled={loading}
             >
-              {loading ? (
-                <div className="loading-button">
-                  <svg className="loading-spinner" viewBox="0 0 24 24">
-                    <circle
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                      fill="none"
-                    />
-                    <path
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    />
-                  </svg>
-                  <span>Criando conta...</span>
-                </div>
-              ) : (
-                `Criar ${
-                  accountType === "personal"
-                    ? "Conta Pessoal"
-                    : "Conta Empresarial"
-                }`
-              )}
+              {loading
+                ? "Criando conta..."
+                : `Criar ${
+                    accountType === "personal"
+                      ? "Conta Pessoal"
+                      : "Conta Empresarial"
+                  }`}
             </button>
           </form>
 

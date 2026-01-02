@@ -1,4 +1,4 @@
-﻿generator client {
+generator client {
   provider = "prisma-client-js"
 }
 
@@ -59,6 +59,8 @@ model Company {
   website         String?
   description     String?
   logoUrl         String?
+  industry        String?            // ADICIONE ESTE CAMPO
+  size            String?            // ADICIONE ESTE CAMPO
   socialLinks     Json?
   
   themeSettingsId Int                @unique

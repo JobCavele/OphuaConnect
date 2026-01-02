@@ -1,0 +1,23 @@
+/* QRCodeGenerator.css – estilos isolados para o componente QR */
+.qr-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.5rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  max-width: 260px;
+  margin: 0 auto;
+}
+
+.qr-wrapper canvas {
+  border-radius: var(--radius);
+  image-rendering: crisp-edges;
+}
+
+.qr-wrapper .btn {
+  margin-top: 0.5rem;
+}

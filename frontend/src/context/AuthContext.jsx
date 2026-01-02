@@ -114,6 +114,23 @@ export const AuthProvider = ({ children }) => {
   const isEmployee = () => {
     return user?.role === "EMPLOYEE";
   };
+  const updateUser = (updatedData) => {
+    try {
+      const currentUser = authService.getCurrentUser();
+      const updatedUser = {
+        ...currentUser,
+        ...updatedData,
+      };
+
+      authService.saveUser(updatedUser);
+      setUser(updatedUser);
+
+      return { success: true, user: updatedUser };
+    } catch (error) {
+      console.error("Erro ao atualizar usuário:", error);
+      return { success: false, error: error.message };
+    }
+  };
 
   const value = {
     user,
@@ -129,6 +146,7 @@ export const AuthProvider = ({ children }) => {
     isCompanyAdmin,
     isPersonal,
     isEmployee,
+    updateUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

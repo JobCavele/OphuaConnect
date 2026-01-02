@@ -1,65 +1,62 @@
 ﻿// src/services/api.js
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
-// Função principal para requisições
-export const apiRequest = async (endpoint, options = {}) => {
+const getToken = () => localStorage.getItem("token");
+
+// Função base
+export const fetchAPI = async (endpoint, options = {}) => {
   const url = `${API_BASE_URL}${endpoint}`;
-  
+  const token = getToken();
+
   const config = {
     method: options.method || "GET",
     headers: {
       "Content-Type": "application/json",
+      ...(token && { Authorization: `Bearer ${token}` }),
       ...options.headers,
     },
     body: options.body ? JSON.stringify(options.body) : undefined,
   };
 
-  try {
-    const response = await fetch(url, config);
-    
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || `HTTP error ${response.status}`);
-    }
-    
-    return await response.json();
-  } catch (error) {
-    console.error("API Error:", error.message);
-    throw error;
+  const response = await fetch(url, config);
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.message || `HTTP ${response.status}`);
   }
+  return response.json();
 };
 
-// Função para upload de arquivos (se precisar)
-export const uploadFile = async (endpoint, file, options = {}) => {
-  const url = `${API_BASE_URL}${endpoint}`;
+// Funções específicas para empresa
+export const companyAPI = {
+  getProfile: () => fetchAPI("/api/company/profile"),
+  getDashboard: (slug) => fetchAPI(`/api/company/${slug}/dashboard`),
+  getEmployees: () => fetchAPI("/api/company/employees"),
+  updateTheme: (data) =>
+    fetchAPI("/api/company/update-theme", { method: "PUT", body: data }),
+};
+
+// Funções de autenticação
+export const authAPI = {
+  login: (data) => fetchAPI("/api/auth/login", { method: "POST", body: data }),
+  registerCompany: (data) =>
+    fetchAPI("/api/auth/register/company", { method: "POST", body: data }),
+};
+
+// Upload
+export const uploadFile = async (file) => {
+  const url = `${API_BASE_URL}/api/company/upload-logo`;
+  const token = getToken();
   const formData = new FormData();
-  formData.append("file", file);
+  formData.append("logo", file);
 
-  const config = {
+  const response = await fetch(url, {
     method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: formData,
-    headers: {
-      ...options.headers,
-    },
-  };
+  });
 
-  try {
-    const response = await fetch(url, config);
-    
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || `HTTP error ${response.status}`);
-    }
-    
-    return await response.json();
-  } catch (error) {
-    console.error("Upload Error:", error.message);
-    throw error;
-  }
+  if (!response.ok) throw new Error("Upload failed");
+  return response.json();
 };
 
-// Exportação única se quiser usar assim:
-export default {
-  apiRequest,
-  uploadFile
-};
+export default { fetchAPI, companyAPI, authAPI, uploadFile };

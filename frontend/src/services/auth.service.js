@@ -1,76 +1,50 @@
 // src/services/auth.service.js
-import { apiRequest } from "./api.js";
+import { fetchAPI } from "./api.js"; // ← MUDAR ISSO
 
 export const authService = {
   async login(credentials) {
     console.log("🔐 Login service called with:", credentials);
-    
-    const response = await apiRequest("/auth/login", {
+
+    // Use fetchAPI em vez de apiRequest
+    const response = await fetchAPI("/api/auth/login", {
+      // ← ADICIONE /api
       method: "POST",
       body: credentials,
     });
-    
+
     console.log("🔐 Login service response:", response);
-    
-    // Se apiRequest já retornou um objeto com success: false, retorne-o
-    if (response.success === false) {
-      return response;
-    }
-    
-    // Se chegou aqui, a requisição foi bem-sucedida
     return response;
   },
 
   async registerPersonal(userData) {
-    const response = await apiRequest("/auth/register/personal", {
+    return fetchAPI("/api/auth/register/personal", {
+      // ← ADICIONE /api
       method: "POST",
       body: userData,
     });
-    
-    if (response.success === false) {
-      return response;
-    }
-    
-    return response;
   },
 
   async registerCompany(companyData) {
-    const response = await apiRequest("/auth/register/company", {
+    return fetchAPI("/api/auth/register/company", {
+      // ← ADICIONE /api
       method: "POST",
       body: companyData,
     });
-    
-    if (response.success === false) {
-      return response;
-    }
-    
-    return response;
   },
 
   async registerEmployee(employeeData, companySlug) {
-    const response = await apiRequest(`/auth/register/employee/${companySlug}`, {
+    return fetchAPI(`/api/auth/register/employee/${companySlug}`, {
+      // ← ADICIONE /api
       method: "POST",
       body: employeeData,
     });
-    
-    if (response.success === false) {
-      return response;
-    }
-    
-    return response;
   },
 
   async verifyToken() {
-    const response = await apiRequest("/auth/verify");
-    
-    if (response.success === false) {
-      this.logout();
-      return response;
-    }
-    
-    return response;
+    return fetchAPI("/api/auth/verify"); // ← ADICIONE /api
   },
 
+  // ... resto do código permanece igual
   logout() {
     localStorage.removeItem("token");
     localStorage.removeItem("user");

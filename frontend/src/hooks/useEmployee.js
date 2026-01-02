@@ -1,147 +1,75 @@
 // src/hooks/useEmployee.js
 import { useState, useEffect } from "react";
-import { companyService } from "../services/company.service.js";
+import { employeeService } from "../services/employee.service";
 
-export const useEmployee = (companyId, employeeId) => {
-  const [employee, setEmployee] = useState(null);
+export const useEmployee = () => {
+  const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const fetchEmployee = async () => {
+  // Função para decodificar token
+  const decodeToken = () => {
+    const token = localStorage.getItem("token");
+    if (!token) return null;
+    try {
+      const payload = token.split(".")[1];
+      return JSON.parse(atob(payload));
+    } catch {
+      return null;
+    }
+  };
+
+  const fetchEmployees = async () => {
     try {
       setLoading(true);
+
+      // DEBUG: Verifique o token
+      const decoded = decodeToken();
+      console.log("🔑 Token decodificado:", decoded);
+
+      const data = await employeeService.getAll();
+      console.log("📊 Dados recebidos:", data);
+
+      setEmployees(Array.isArray(data) ? data : []);
       setError(null);
-
-      if (!companyId || !employeeId) {
-        throw new Error("ID da empresa ou funcionário não fornecido");
-      }
-
-      // Primeiro busca os funcionários da empresa
-      const response = await companyService.getEmployees(companyId);
-
-      if (response.success) {
-        const foundEmployee = response.employees?.find(
-          (emp) => emp.id === parseInt(employeeId) || emp.id === employeeId
-        );
-
-        if (foundEmployee) {
-          setEmployee(foundEmployee);
-        } else {
-          throw new Error("Funcionário não encontrado");
-        }
-      } else {
-        throw new Error(response.error || "Erro ao buscar funcionários");
-      }
     } catch (err) {
       setError(err.message);
-      console.error("Erro ao buscar funcionário:", err);
+      console.error("❌ Erro ao buscar funcionários:", err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (companyId && employeeId) {
-      fetchEmployee();
-    }
-  }, [companyId, employeeId]);
+    fetchEmployees();
+  }, []);
 
-  const updateEmployee = async (employeeData) => {
+  const approveEmployee = async (id) => {
     try {
-      if (!companyId || !employeeId) {
-        throw new Error("ID da empresa ou funcionário não fornecido");
-      }
-
-      // Nota: Aqui você precisaria de um serviço específico para atualizar funcionários
-      // Por enquanto, vamos simular
-      const response = {
-        success: true,
-        employee: { ...employee, ...employeeData },
-      };
-
-      if (response.success) {
-        setEmployee(response.employee);
-        return { success: true, employee: response.employee };
-      } else {
-        throw new Error(response.error || "Erro ao atualizar funcionário");
-      }
-    } catch (err) {
-      setError(err.message);
-      return { success: false, error: err.message };
-    }
-  };
-
-  const removeEmployee = async () => {
-    try {
-      if (!companyId || !employeeId) {
-        throw new Error("ID da empresa ou funcionário não fornecido");
-      }
-
-      const response = await companyService.removeEmployee(
-        companyId,
-        employeeId
+      await employeeService.approve(id);
+      setEmployees((prev) =>
+        prev.map((emp) => (emp.id === id ? { ...emp, status: "active" } : emp))
       );
-
-      if (response.success) {
-        return { success: true };
-      } else {
-        throw new Error(response.error || "Erro ao remover funcionário");
-      }
     } catch (err) {
-      setError(err.message);
-      return { success: false, error: err.message };
+      console.error("Erro ao aprovar:", err);
     }
   };
 
-  const approveEmployee = async () => {
+  const rejectEmployee = async (id) => {
     try {
-      if (!companyId || !employeeId) {
-        throw new Error("ID da empresa ou funcionário não fornecido");
-      }
-
-      // Atualiza o status do funcionário para aprovado
-      const response = await updateEmployee({ status: "approved" });
-
-      if (response.success) {
-        return { success: true, employee: response.employee };
-      } else {
-        throw new Error("Erro ao aprovar funcionário");
-      }
+      await employeeService.reject(id);
+      setEmployees((prev) => prev.filter((emp) => emp.id !== id));
     } catch (err) {
-      setError(err.message);
-      return { success: false, error: err.message };
-    }
-  };
-
-  const rejectEmployee = async (reason) => {
-    try {
-      if (!companyId || !employeeId) {
-        throw new Error("ID da empresa ou funcionário não fornecido");
-      }
-
-      // Remove o funcionário
-      const response = await removeEmployee();
-
-      if (response.success) {
-        return { success: true, reason };
-      } else {
-        throw new Error("Erro ao rejeitar funcionário");
-      }
-    } catch (err) {
-      setError(err.message);
-      return { success: false, error: err.message };
+      console.error("Erro ao rejeitar:", err);
     }
   };
 
   return {
-    employee,
+    employees,
     loading,
     error,
-    fetchEmployee,
-    updateEmployee,
-    removeEmployee,
+    fetchEmployees,
     approveEmployee,
     rejectEmployee,
-    refetch: fetchEmployee,
   };
 };

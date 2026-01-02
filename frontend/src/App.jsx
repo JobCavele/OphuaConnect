@@ -1,65 +1,134 @@
 ﻿// src/App.jsx
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import React from "react";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
+import { ThemeProvider } from "./context/ThemeContext"; // ← IMPORTAÇÃO CORRETA
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 
+// Páginas
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Home from "./pages/public/Home";
-import Dashboard from "./pages/Dashboard";
 import AdminDashboard from "./pages/admin/Dashboard";
-import AdminCompanies from "./pages/admin/Companies"; // <<< NOVO
-
+import AdminCompanies from "./pages/admin/Companies";
 import CompanyDashboard from "./pages/company/Dashboard";
 import CompanyProfileEdit from "./pages/company/profile/Edit";
-import CompanyEmployeesList from "./pages/company/Employees/List";
-
+import Employees from "./pages/company/Employees/Employees";
 import PersonalDashboard from "./pages/personal/Dashboard";
 import PersonalProfile from "./pages/public/PersonalProfile";
 import CompanyProfile from "./pages/public/CompanyProfile";
-
-import "./styles/global.css";
-import "./styles/pages/Login.css";
-import "./styles/pages/Register.css";
-import "./styles/pages/Company.css";
+import EmployeePublicProfile from "./pages/public/EployeePublicProfile";
+import EmployeeDashboard from "./pages/company/Employees/Dashboard";
 
 function App() {
   return (
     <Router>
-      <AuthProvider>
-        <Routes>
-          {/* Públicas */}
-          <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/register/employee/:companySlug" element={<Register />} />
-          <Route path="/company/:slug" element={<CompanyProfile />} />
-          <Route path="/personal/:username" element={<PersonalProfile />} />
+      <ThemeProvider>
+        <AuthProvider>
+          <Routes>
+            {/* Públicas */}
+            <Route path="/" element={<Home />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route
+              path="/register/employee/:companySlug"
+              element={<Register />}
+            />
+            <Route path="/company/:slug" element={<CompanyProfile />} />
+            <Route path="/personal/:username" element={<PersonalProfile />} />
+            <Route
+              path="/company/:companySlug/employee/:employeeId"
+              element={<EmployeePublicProfile />}
+            />
 
-          {/* Dashboard Geral */}
-          <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            {/* Admin */}
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute allowedRoles={["SUPER_ADMIN"]}>
+                  <AdminDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/companies"
+              element={
+                <ProtectedRoute allowedRoles={["SUPER_ADMIN"]}>
+                  <AdminCompanies />
+                </ProtectedRoute>
+              }
+            />
 
-          {/* Admin / Super-Admin */}
-          <Route path="/admin" element={<ProtectedRoute allowedRoles={["SUPER_ADMIN"]}><AdminDashboard /></ProtectedRoute>} />
-          <Route path="/admin/companies" element={<ProtectedRoute allowedRoles={["SUPER_ADMIN"]}><AdminCompanies /></ProtectedRoute>} />
+            {/* Empresa */}
+            <Route
+              path="/company/dashboard"
+              element={
+                <ProtectedRoute allowedRoles={["COMPANY_ADMIN"]}>
+                  <CompanyDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/company/edit"
+              element={
+                <ProtectedRoute allowedRoles={["COMPANY_ADMIN"]}>
+                  <CompanyProfileEdit />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/company/employees"
+              element={
+                <ProtectedRoute allowedRoles={["COMPANY_ADMIN"]}>
+                  <Employees />
+                </ProtectedRoute>
+              }
+            />
 
-          {/* Empresa */}
-          <Route path="/company/dashboard" element={<ProtectedRoute allowedRoles={["COMPANY_ADMIN"]}><CompanyDashboard /></ProtectedRoute>} />
-          <Route path="/company/edit" element={<ProtectedRoute allowedRoles={["COMPANY_ADMIN"]}><CompanyProfileEdit /></ProtectedRoute>} />
-          <Route path="/company/employees" element={<ProtectedRoute allowedRoles={["COMPANY_ADMIN"]}><CompanyEmployeesList /></ProtectedRoute>} />
-          <Route path="/company/employees/pending" element={<ProtectedRoute allowedRoles={["COMPANY_ADMIN"]}><div style={{ padding: "var(--space-6)" }}><h1>Aprovações Pendentes</h1><p>Página em construção</p></div></ProtectedRoute>} />
+            {/* Funcionário */}
+            <Route
+              path="/employee/dashboard"
+              element={
+                <ProtectedRoute allowedRoles={["EMPLOYEE"]}>
+                  <EmployeeDashboard />
+                </ProtectedRoute>
+              }
+            />
 
-          {/* Pessoal */}
-          <Route path="/personal/dashboard" element={<ProtectedRoute><PersonalDashboard /></ProtectedRoute>} />
+            {/* Pessoal */}
+            <Route
+              path="/personal/dashboard"
+              element={
+                <ProtectedRoute allowedRoles={["PERSONAL"]}>
+                  <PersonalDashboard />
+                </ProtectedRoute>
+              }
+            />
 
-          {/* Redirecionamentos */}
-          <Route path="/company" element={<Navigate to="/company/dashboard" replace />} />
-          <Route path="/personal" element={<Navigate to="/personal/dashboard" replace />} />
+            {/* Redirecionamentos */}
+            <Route
+              path="/company"
+              element={<Navigate to="/company/dashboard" replace />}
+            />
+            <Route
+              path="/personal"
+              element={<Navigate to="/personal/dashboard" replace />}
+            />
+            <Route
+              path="/employee"
+              element={<Navigate to="/employee/dashboard" replace />}
+            />
 
-          {/* 404 */}
-          <Route path="*" element={<div className="not-found"><h1>404</h1><p>Página não encontrada</p><a href="/" className="home-link">Voltar para Home</a></div>} />
-        </Routes>
-      </AuthProvider>
+            {/* 404 */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </AuthProvider>
+      </ThemeProvider>
     </Router>
   );
 }
